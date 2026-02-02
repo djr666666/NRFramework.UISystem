@@ -5,6 +5,9 @@
 - [gitHub原工程链接](https://github.com/NRatel/NRFramework.UI)
 
 ### 配置导出路径预，Base  Temp  Prefabs制体路径
+- 修改： Root预制体GGame，初始化一件生成UI 框架层级模块。
+- 修改： 增加UI编辑器功能方便快捷开发。等
+- 修改： 增加源码并未监听重要的相关功能。
 ![配置](Assets/Image/2.png)
 
 ### 在NRFramework 的基础上新增了本地UI编辑器，方便开发者可视化开发
@@ -27,5 +30,6 @@
 ### 代码源文件修改
 - 源代码中并未支持Update，后台挂机，返回游戏等相关函数
 - 修改后，支持这些功能，手动控制Update是否 使用。避免了update滥用 同时 也能够在极端特殊情况下必须使用Update的需求
+- 可以去我的博客看基于Unitask 下写的计时器结合使用
 - 其他更多修改可以根据自己的项目，手动添加，修改。
 
