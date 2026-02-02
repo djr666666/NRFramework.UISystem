@@ -19,3 +19,5 @@
 - 一个完全由本地编辑器控制，一个完全由luban 配置表驱动
 - 从一个函数方法不难看出，配置表驱动，需要名字，路径 层级 等基础信息
 - 同时当我们做界面跳转功能，功能需求可以让策划配置，同时我们可以走本地编辑器，两种模式结合使用，策划不需要陪路径层级等基础信息，能够减轻开发繁琐流程。
+[UINRFramwork文档](https://blog.csdn.net/NRatel/article/details/127902181)
+[gitHub链接](https://github.com/NRatel/NRFramework.UI)
