@@ -20,5 +20,11 @@
 - 从一个函数方法不难看出，配置表驱动，需要名字，路径 层级 等基础信息
 - 同时当我们做界面跳转功能，功能需求可以让策划配置，同时我们可以走本地编辑器，两种模式结合使用，策划不需要陪路径层级等基础信息，能够减轻开发繁琐流程。
 - 同时这套UI框架，可以适配 YooAssets  Luban  HybridCLR 等多种开发工具.
+### 代码源文件修改
+- 源代码中并未支持Update，后台挂机，返回游戏等相关函数
+- 修改后，支持这些功能，手动控制Update是否 使用。避免了update滥用 同时 也能够在极端特殊情况下必须使用Update的需求
+- 其他更多修改可以根据自己的项目，手动添加，修改。
+
+### 链接
 - [UINRFramwork文档](https://blog.csdn.net/NRatel/article/details/127902181)
 - [gitHub原工程链接](https://github.com/NRatel/NRFramework.UI)
