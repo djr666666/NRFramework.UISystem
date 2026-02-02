@@ -1,0 +1,19 @@
+{
+    "uiItems": [
+        {
+            "guid": "55ae599e2254bcd46be4a612f2ebc1d5",
+            "prefabPath": "Assets/Prefabs/Ui_TEST_1.prefab",
+            "prefabName": "Ui_TEST_1",
+            "folderPath": "Assets\\Prefabs",
+            "fullFolderPath": "Assets\\Prefabs",
+            "uiLayer": 4,
+            "isActive": true,
+            "sortOrder": 0
+        }
+    ],
+    "scanPaths": [
+        "Assets/Prefabs"
+    ],
+    "exportTime": "2026-02-02 16:23:33",
+    "totalCount": 1
+}
