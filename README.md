@@ -1,5 +1,9 @@
 # NRFramework.UISystem
 基于NRFramework.UI 框架 优化编辑自定义编辑，小魔改源码增加需求方法，支持本地操作和Luban导表双重配置，同时也支持两种模式结合使用，方便配置和开发。
+### 链接
+- [UINRFramwork文档](https://blog.csdn.net/NRatel/article/details/127902181)
+- [gitHub原工程链接](https://github.com/NRatel/NRFramework.UI)
+
 ### 配置导出路径预，Base  Temp  Prefabs制体路径
 ![配置](Assets/Image/2.png)
 
@@ -9,7 +13,7 @@
 - 加载配置： 加载已经配置好的数据 例 : UI 层级 路径 等
 - 设置：配置搜集预制体路径（支持多个路径）
 - 预制体上 可以通过 “层级” 修改加载后父物体UILayer层级 点击下面两个按钮保存UI配置
-- 导出代码等 参考NRFramework.UI 官方文档我会贴在下面
+- 导出代码等 参考NRFramework.UI 官方文档我会贴在上面
 ![编辑器](Assets/Image/1.png)
 
 ### 代码导出后，本地配置导出后  打开界面支持 luban 配置 和本地配置
@@ -25,6 +29,3 @@
 - 修改后，支持这些功能，手动控制Update是否 使用。避免了update滥用 同时 也能够在极端特殊情况下必须使用Update的需求
 - 其他更多修改可以根据自己的项目，手动添加，修改。
 
-### 链接
-- [UINRFramwork文档](https://blog.csdn.net/NRatel/article/details/127902181)
-- [gitHub原工程链接](https://github.com/NRatel/NRFramework.UI)
