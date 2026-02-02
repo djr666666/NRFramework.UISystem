@@ -5,12 +5,12 @@
 - [gitHub原工程链接](https://github.com/NRatel/NRFramework.UI)
 
 ### 配置导出路径预，Base  Temp  Prefabs制体路径
-- 修改： Root预制体GGame，初始化一件生成UI 框架层级模块。
-- 修改： 增加UI编辑器功能方便快捷开发。等
+- 修改： Root预制体GGame，初始化一键生成UI 框架层级模块。
+- 修改： 增加UI编辑器功能方便快捷开发。
 - 修改： 增加源码并未监听重要的相关功能。
 ![配置](Assets/Image/2.png)
 
-### 在NRFramework 的基础上新增了本地UI编辑器，方便开发者可视化开发
+### NRFramework UI编辑器
 - 通过Unity项目 Tools--UI管理打开
 - 扫描 ：筛选出UI预制体 剔除 wight 组件 在UIPanel 上需要挂架NRFramework 的 UIPanelBehaviour
 - 加载配置： 加载已经配置好的数据 例 : UI 层级 路径 等
@@ -19,7 +19,7 @@
 - 导出代码等 参考NRFramework.UI 官方文档我会贴在上面
 ![编辑器](Assets/Image/1.png)
 
-### 代码导出后，本地配置导出后  打开界面支持 luban 配置 和本地配置
+### 打开界面支持 luban 配置 和本地配置
 
 ![打开](Assets/Image/QQ_1770024149213.png)
 ![打开](Assets/Image/QQ_1770024204544.png)
