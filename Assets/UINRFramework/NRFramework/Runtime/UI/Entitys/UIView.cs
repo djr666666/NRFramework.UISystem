@@ -97,8 +97,19 @@ namespace NRFramework
 
         public T CreateWidget<T>(string widgetId, Transform parentTransform, UIWidgetBehaviour widgetBehaviour) where T : UIWidget
         {
+
+
+//原来widget 方法没有根据 代码对象实例化的走的是路径我在这个地方修改了源码 可以直接走了
+
+            GameObject go = GameObject.Instantiate(widgetBehaviour.gameObject, parentTransform);
+            go.name = widgetId;
+
+            // 2. 获取克隆体上的 UIWidgetBehaviour
+            UIWidgetBehaviour newBehaviour = go.GetComponent<UIWidgetBehaviour>();
+            Debug.Assert(newBehaviour != null, "克隆的物体上没有 UIWidgetBehaviour 组件");
+
             T widget = Activator.CreateInstance(typeof(T)) as T;
-            widget.Create(widgetId, this, parentTransform, widgetBehaviour);
+            widget.Create(widgetId, this, parentTransform, newBehaviour);
 
             if (widgetDict == null) { widgetDict = new Dictionary<string, UIWidget>(); }
             widgetDict.Add(widgetId, widget);
