@@ -14,7 +14,7 @@ namespace NRFramework
     /// UIView 中定义了界面创建基本过程模板，并提供 Widget 的创建、销毁接口
     /// </summary>
 
-    public abstract partial class UIView 
+    public abstract partial class UIView
     {
         protected string viewId;
         public Transform parentTransform;
@@ -32,7 +32,7 @@ namespace NRFramework
         protected void Create(string viewId, Transform parentTransform, string prefabPath)
         {
             //YooAsset.AssetHandle prefab;
-             GameObject go = null;
+            GameObject go = null;
 #if UNITY_EDITOR
             //prefab = YooAssets.LoadAssetSync<GameObject>(prefabPath);
             GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
@@ -97,16 +97,36 @@ namespace NRFramework
 
         public T CreateWidget<T>(string widgetId, Transform parentTransform, UIWidgetBehaviour widgetBehaviour) where T : UIWidget
         {
+            T widget = Activator.CreateInstance(typeof(T)) as T;
+            widget.Create(widgetId, this, parentTransform, widgetBehaviour);
 
+            if (widgetDict == null) { widgetDict = new Dictionary<string, UIWidget>(); }
+            widgetDict.Add(widgetId, widget);
+            return widget;
+        }
 
-//原来widget 方法没有根据 代码对象实例化的走的是路径我在这个地方修改了源码 可以直接走了
+        public T CloneWidget<T>(string widgetId, Transform parentTransform, string prefabPath) where T : UIWidget
+        {
+            UIViewBehaviour parentViewBehaviour = parentTransform.GetComponentInParent<UIViewBehaviour>();
+            Debug.Assert(viewBehaviour.Equals(parentViewBehaviour));    //必须以当前UIView的元素作为UIWidget的父节点
 
+            T widget = Activator.CreateInstance(typeof(T)) as T;
+            widget.Create(widgetId, this, parentTransform, prefabPath);
+
+            if (widgetDict == null) { widgetDict = new Dictionary<string, UIWidget>(); }
+            widgetDict.Add(widgetId, widget);
+            return widget;
+        }
+
+        public T CloneWidget<T>(string widgetId, Transform parentTransform, UIWidgetBehaviour widgetBehaviour) where T : UIWidget
+        {
             GameObject go = GameObject.Instantiate(widgetBehaviour.gameObject, parentTransform);
             go.name = widgetId;
-
+            go.gameObject.SetActive(true);
             // 2. 获取克隆体上的 UIWidgetBehaviour
             UIWidgetBehaviour newBehaviour = go.GetComponent<UIWidgetBehaviour>();
             Debug.Assert(newBehaviour != null, "克隆的物体上没有 UIWidgetBehaviour 组件");
+
 
             T widget = Activator.CreateInstance(typeof(T)) as T;
             widget.Create(widgetId, this, parentTransform, newBehaviour);
@@ -136,6 +156,27 @@ namespace NRFramework
             return CreateWidget<T>(typeof(T).Name, widgetBehaviour.transform.parent, widgetBehaviour);
         }
 
+        public T CloneWidget<T>(Transform parentTransform, string prefabPath) where T : UIWidget
+        {
+            return CloneWidget<T>(typeof(T).Name, parentTransform, prefabPath);
+        }
+
+
+        public T CloneWidget<T>(Transform parentTransform, UIWidgetBehaviour templateBehaviour) where T : UIWidget
+        {
+            return CloneWidget<T>(typeof(T).Name, parentTransform, templateBehaviour);
+        }
+
+
+        public T CloneWidget<T>(string widgetId, UIWidgetBehaviour templateBehaviour) where T : UIWidget
+        {
+            return CloneWidget<T>(widgetId, templateBehaviour.transform.parent, templateBehaviour);
+        }
+
+        public T CloneWidget<T>(UIWidgetBehaviour templateBehaviour) where T : UIWidget
+        {
+            return CloneWidget<T>(typeof(T).Name, templateBehaviour.transform.parent, templateBehaviour);
+        }
         public void DestroyWidget(string widgetId)
         {
             Debug.Assert(widgetDict != null); //widgetDict未创建
@@ -366,7 +407,7 @@ namespace NRFramework
 
         protected virtual void OnEnable() { }
 
-        
+
 
         protected virtual void OnAddApplicationPause(Action<bool> add) => viewBehaviour.onApplicationPause += add;
 
@@ -378,10 +419,10 @@ namespace NRFramework
 
 
         /// <summary>Upadte</summary>
-        protected virtual void OnAddUpdate(Action add){if (viewBehaviour != null) viewBehaviour.onUpdate += add;}
+        protected virtual void OnAddUpdate(Action add) { if (viewBehaviour != null) viewBehaviour.onUpdate += add; }
 
         /// <summary>取消Upadte </summary>
-        protected virtual void OnRemoveUpdate(Action remove) {if (viewBehaviour != null)viewBehaviour.onUpdate -= remove;}
+        protected virtual void OnRemoveUpdate(Action remove) { if (viewBehaviour != null) viewBehaviour.onUpdate -= remove; }
 
         /// <summary>Upadte</summary>
         protected virtual void OnAddFixUpdate(Action add) { if (viewBehaviour != null) viewBehaviour.onFixUpdate += add; }
@@ -418,7 +459,7 @@ namespace NRFramework
         /// </summary>
         protected virtual void OnDestroyed() { }
 
-  
+
 
 
         #endregion
