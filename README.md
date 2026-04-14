@@ -1,5 +1,9 @@
 # NRFramework.UISystem
-基于NRFramework.UI 框架 增加自定义编辑器，魔改源码，增加商业化项目，需要方法，支持本地操作和Luban导表双重配置（以本地UI编辑器为主），支持两种模式结合使用，支持一键生成UI框架层级配置，支持一键导出代码，配置UI效果表现。等相关功能
+- 基于NRFramework.UI 框架 增加UI编辑器
+- 魔改源码，增加支持商业化项目的需要方法
+- 支持本地操作和Luban导表双重配置（以本地UI编辑器为主），支持两种模式结合使用。
+- 支持一键生成UI框架层级配置
+- 支持一键导出代码，配置UI效果表现。等相关功能
 ### 链接
 - [UINRFramwork文档](https://blog.csdn.net/NRatel/article/details/127902181)
 - [gitHub原工程链接](https://github.com/NRatel/NRFramework.UI)
