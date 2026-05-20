@@ -35,12 +35,38 @@ namespace NRFramework
                GenerateUIBaseCode();
            }
 
-           if (GUILayout.Button("ExportTemp"))
+            if (GUILayout.Button("ExportTemp"))
+   {
+       if (Application.isPlaying) { Debug.LogError("请在非运行时导出"); return; }
+
+       // 检查文件是否已存在
+       string prefabPath = GetPrefabPath();
+       if (!string.IsNullOrEmpty(prefabPath))
+       {
+           string fullPrefabPath = Path.GetFullPath(Path.Combine(Application.dataPath, Path.GetRelativePath("Assets", prefabPath)));
+           string fullRootDir = Path.GetFullPath(Path.Combine(Application.dataPath, EditorSetting.Instance.uiPrefabRootDir));
+           string subPath = Path.GetRelativePath(fullRootDir, fullPrefabPath);
+           string className = Path.GetFileNameWithoutExtension(subPath);
+           string subSavePath = Path.Combine(Path.GetDirectoryName(subPath), className + "_Temp.cs");
+           string savePath = Path.GetFullPath(Path.Combine(Application.dataPath, EditorSetting.Instance.generatedTempUIRootDir, subSavePath));
+           string assetPath = "Assets" + savePath.Substring(Application.dataPath.Length).Replace("\\", "/");
+
+           string guid = AssetDatabase.AssetPathToGUID(assetPath);
+           if (!string.IsNullOrEmpty(guid))
            {
-               if (Application.isPlaying) { Debug.LogError("请在非运行时导出"); return; }
-               RefreshOpElementList(m_OpElementListRL);
-               GenerateUITempCode();
+               bool confirm = EditorUtility.DisplayDialog(
+                   "覆盖确认",
+                   $"{className}_Temp.cs 已存在，覆盖后手写代码将丢失，确认导出？",
+                   "确认覆盖",
+                   "取消"
+               );
+               if (!confirm) return;
            }
+       }
+
+       RefreshOpElementList(m_OpElementListRL);
+       GenerateUITempCode();
+   }
      
        }
        GUILayout.EndHorizontal();
