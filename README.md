@@ -10,6 +10,7 @@
 - 新增商业化功能接口，魔改源码。
 - 新增UI编辑索引，和管理功能。
 - 新增大型项目层级设计
+- 新增代码定位
 ### 链接
 - [UINRFramwork文档](https://blog.csdn.net/NRatel/article/details/127902181)
 - [gitHub原工程链接](https://github.com/NRatel/NRFramework.UI)
