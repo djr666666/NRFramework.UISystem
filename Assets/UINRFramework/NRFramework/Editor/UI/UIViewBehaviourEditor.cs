@@ -24,26 +24,131 @@ namespace NRFramework
             m_OpElementListRL.DoLayoutList();
         }
 
-        protected void DrawExpoertButton()
-        {
-            GUILayout.BeginHorizontal();
-            {
-                if (GUILayout.Button("ExportBase"))
-                {
-                    if (Application.isPlaying) { Debug.LogError("请在非运行时导出"); return; }
-                    RefreshOpElementList(m_OpElementListRL);
-                    GenerateUIBaseCode();
-                }
+       protected void DrawExpoertButton()
+   {
+       GUILayout.BeginHorizontal();
+       {
+           if (GUILayout.Button("ExportBase"))
+           {
+               if (Application.isPlaying) { Debug.LogError("请在非运行时导出"); return; }
+               RefreshOpElementList(m_OpElementListRL);
+               GenerateUIBaseCode();
+           }
 
-                if (GUILayout.Button("ExportTemp"))
-                {
-                    if (Application.isPlaying) { Debug.LogError("请在非运行时导出"); return; }
-                    RefreshOpElementList(m_OpElementListRL);
-                    GenerateUITempCode();
-                }
-            }
-            GUILayout.EndHorizontal();
-        }
+           if (GUILayout.Button("ExportTemp"))
+           {
+               if (Application.isPlaying) { Debug.LogError("请在非运行时导出"); return; }
+               RefreshOpElementList(m_OpElementListRL);
+               GenerateUITempCode();
+           }
+     
+       }
+       GUILayout.EndHorizontal();
+
+       GUILayout.BeginHorizontal();
+       {
+
+           if (GUILayout.Button("FindBase"))
+           {
+               if (Application.isPlaying) { Debug.LogError("请在非运行时定位"); return; }
+               LocateUIBaseCode();
+           }
+           if (GUILayout.Button("FindTemp"))
+           {
+               if (Application.isPlaying) { Debug.LogError("请在非运行时定位"); return; }
+               LocateUITempCode();
+           }
+       }
+       GUILayout.EndHorizontal();
+   }
+
+
+      private void LocateUIBaseCode()
+      {
+          string prefabPath = GetPrefabPath();
+          if (string.IsNullOrEmpty(prefabPath))
+          {
+              Debug.LogError("非预设不可定位");
+              return;
+          }
+
+          string fullPrefabPath = Path.GetFullPath(Path.Combine(Application.dataPath, Path.GetRelativePath("Assets", prefabPath)));
+          string fullRootDir = Path.GetFullPath(Path.Combine(Application.dataPath, EditorSetting.Instance.uiPrefabRootDir));
+
+          if (!fullPrefabPath.StartsWith(fullRootDir))
+          {
+              Debug.LogError("预设不在可定位的根目录中：" + fullRootDir);
+              return;
+          }
+
+          string subPath = Path.GetRelativePath(fullRootDir, fullPrefabPath);
+          string className = Path.GetFileNameWithoutExtension(subPath);
+          string subSavePath = Path.Combine(Path.GetDirectoryName(subPath), className + "Base.cs");
+          string savePath = Path.GetFullPath(Path.Combine(Application.dataPath, EditorSetting.Instance.generatedBaseUIRootDir, subSavePath));
+
+          string assetPath = "Assets" + savePath.Substring(Application.dataPath.Length).Replace("\\", "/");
+
+          // 用 GUID 查找，不触发编译
+          string guid = AssetDatabase.AssetPathToGUID(assetPath);
+          if (string.IsNullOrEmpty(guid))
+          {
+              Debug.LogWarning("文件不存在，请先 ExportTemp：" + assetPath);
+              return;
+          }
+
+          UnityEngine.Object obj = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(assetPath);
+          //EditorUtility.FocusProjectWindow(); 打开inspector 就会跳过去
+          //Selection.activeObject = obj; 打开inspector 就会跳过去
+          EditorGUIUtility.PingObject(obj);
+      }
+
+      private void LocateUITempCode()
+      {
+          string prefabPath = GetPrefabPath();
+          if (string.IsNullOrEmpty(prefabPath))
+          {
+              Debug.LogError("非预设不可定位");
+              return;
+          }
+
+          string fullPrefabPath = Path.GetFullPath(Path.Combine(Application.dataPath, Path.GetRelativePath("Assets", prefabPath)));
+          string fullRootDir = Path.GetFullPath(Path.Combine(Application.dataPath, EditorSetting.Instance.uiPrefabRootDir));
+
+          if (!fullPrefabPath.StartsWith(fullRootDir))
+          {
+              Debug.LogError("预设不在可定位的根目录中：" + fullRootDir);
+              return;
+          }
+
+          string subPath = Path.GetRelativePath(fullRootDir, fullPrefabPath);
+          string className = Path.GetFileNameWithoutExtension(subPath);
+          string subSavePath = Path.Combine(Path.GetDirectoryName(subPath), className + "_Temp.cs");
+          string savePath = Path.GetFullPath(Path.Combine(Application.dataPath, EditorSetting.Instance.generatedTempUIRootDir, subSavePath));
+
+          string assetPath = "Assets" + savePath.Substring(Application.dataPath.Length).Replace("\\", "/");
+
+          UnityEngine.Object obj = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(assetPath);
+          if (obj == null)
+          {
+              Debug.LogWarning("文件不存在，请先 ExportTemp：" + assetPath);
+              return;
+          }
+
+          //EditorUtility.FocusProjectWindow(); 打开inspector 就会跳过去
+          //Selection.activeObject = obj; 打开inspector 就会跳过去
+          EditorGUIUtility.PingObject(obj);
+      }
+
+
+
+
+
+
+
+
+
+
+
 
         private ReorderableList CreateReorderableList(SerializedProperty opElementListSP)
         {
