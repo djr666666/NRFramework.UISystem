@@ -31,14 +31,16 @@ namespace NRFramework
         {
             Debug.Assert(!panelDict.ContainsKey(panelId));
             Debug.Assert(sortingOrder >= startOrder && sortingOrder <= endOrder);
-
+            //先注册
+            panelStateDict[panelId] = UIPanelState.Show;
+            
             T panel = Activator.CreateInstance(typeof(T)) as T;
             panel.Create(panelId, this, prefabPath);
             panel.SetSortingOrder(sortingOrder);
             int siblingIndex = GetCurrentSiblingIndex(sortingOrder);
             panel.SetSiblingIndex(siblingIndex);
             panelDict.Add(panel.panelId, panel);
-            panelStateDict[panel.panelId] = UIPanelState.Show;
+            
             UIManager.Instance.SetBackgroundAndFocus();
 
 
