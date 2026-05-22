@@ -19,10 +19,12 @@ namespace NRFramework
         public int endOrder;
 
         public Dictionary<string, UIPanel> panelDict { private set; get; }
-
+        public Dictionary<string, UIPanelState> panelStateDict { get; private set; }
+        
         public UIRoot()
         {
             panelDict = new Dictionary<string, UIPanel>();
+            panelStateDict = new Dictionary<string, UIPanelState>();
         }
 
         public T CreatePanel<T>(string panelId, string prefabPath, int sortingOrder) where T : UIPanel
@@ -36,6 +38,7 @@ namespace NRFramework
             int siblingIndex = GetCurrentSiblingIndex(sortingOrder);
             panel.SetSiblingIndex(siblingIndex);
             panelDict.Add(panel.panelId, panel);
+            panelStateDict[panel.panelId] = UIPanelState.Show;
             UIManager.Instance.SetBackgroundAndFocus();
 
 
@@ -68,6 +71,7 @@ namespace NRFramework
 
             UIPanel panel = panelDict[panelId];
             panelDict.Remove(panelId);
+            panelStateDict[panelId] = UIPanelState.Hidden;
             panel.Close(onFinish);
 
             UIManager.Instance.SetBackgroundAndFocus();
@@ -84,6 +88,7 @@ namespace NRFramework
 
             UIPanel panel = panelDict[panelId];
             panelDict.Remove(panelId);
+            panelStateDict[panelId] = UIPanelState.Hidden;
             panel.Destroy();
 
             UIManager.Instance.SetBackgroundAndFocus();
@@ -109,7 +114,10 @@ namespace NRFramework
 
             UIPanel panel = panelDict[panelId];
             panel.SetVisible(visible);
-
+            if (visible)
+                panelStateDict[panelId] = UIPanelState.Show;
+            else
+                panelStateDict[panelId] = UIPanelState.Hidden;
             UIManager.Instance.SetBackgroundAndFocus();
         }
 
@@ -143,6 +151,11 @@ namespace NRFramework
             return ExistPanel(typeof(T).Name);
         }
 
+        public bool IsPanelOpened<T>() where T : UIPanel
+        {
+            var id = typeof(T).Name;
+            return panelStateDict.TryGetValue(id, out var state)&& state == UIPanelState.Show;
+        }
         public int FindPanelComponent<T>(string panelId, string compDefine, out T comp) where T : Component
         {
             comp = null;
