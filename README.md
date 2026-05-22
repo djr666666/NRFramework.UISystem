@@ -11,6 +11,7 @@
 - 新增UI编辑索引，和管理功能。
 - 新增大型项目层级设计
 - 新增代码定位
+- 新增判断UI是否展开功能
 ### 链接
 - [UINRFramwork文档](https://blog.csdn.net/NRatel/article/details/127902181)
 - [gitHub原工程链接](https://github.com/NRatel/NRFramework.UI)
