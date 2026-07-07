@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using NRFramework;
 using System;
 using System.Collections.Generic;
@@ -10,15 +10,6 @@ using UnityEngine;
 
 public class UIEditorManagerWindow : EditorWindow
 {
-
-    // 预览相关
-    private Dictionary<string, Texture2D> prefabPreviews = new Dictionary<string, Texture2D>();
-    private string previewPrefabPath = null;
-    private bool showPreviewWindow = false;
-    private Vector2 previewScrollPosition;
-    private Vector2 previewWindowSize = new Vector2(400, 600);
-    private float previewScale = 1.0f;
-
 
     [System.Serializable]
     public class UIItem
@@ -85,6 +76,7 @@ public class UIEditorManagerWindow : EditorWindow
     private string searchText = "";
     private bool showOnlyActive = true;
     private UILayer filterLayer = UILayer.MainLayer;
+    private bool _filterByLayer = false; // false = 显示全部层级，true = 按 filterLayer 过滤
     private bool showSettings = false;
 
     // 展开状态
@@ -112,7 +104,6 @@ public class UIEditorManagerWindow : EditorWindow
     private const string PATH_CONFIG_FILE = "Assets/Resources/path_config.json";
     private const string UI_CONFIG_FILE = "Assets/Resources/UIConfig.json";
     private const string UI_PATH_CONSTANTS_FILE = "Assets/Resources/UIPath.cs"; // 常量文件路径
-    private const string UI_PREFABS_PATH = "Assets/Prefabs";
 
     [MenuItem("Tools/UI管理器")]
     public static void ShowWindow()
@@ -163,10 +154,10 @@ public class UIEditorManagerWindow : EditorWindow
         }
         else
         {
-            // TODDO 配置默认路径（修改为GUI文件夹）
+            // 配置默认路径（修改为GUI文件夹）
             customScanPaths = new List<string>
             {
-                UI_PREFABS_PATH,
+                "Assets/Project/Prefabs/GUI"
             };
             SavePathConfig();
         }
@@ -222,8 +213,10 @@ public class UIEditorManagerWindow : EditorWindow
         }
 
         // 层级过滤
-        EditorGUILayout.LabelField("层级:", GUILayout.Width(30));
-        filterLayer = (UILayer)EditorGUILayout.EnumPopup(filterLayer, EditorStyles.toolbarDropDown, GUILayout.Width(100));
+        bool newFilterByLayer = GUILayout.Toggle(_filterByLayer, "层级:", EditorStyles.toolbarButton, GUILayout.Width(40));
+        if (newFilterByLayer != _filterByLayer) { _filterByLayer = newFilterByLayer; FilterUIItems(); }
+        UILayer newFilterLayer = (UILayer)EditorGUILayout.EnumPopup(filterLayer, EditorStyles.toolbarDropDown, GUILayout.Width(100));
+        if (newFilterLayer != filterLayer) { filterLayer = newFilterLayer; if (_filterByLayer) FilterUIItems(); }
 
         // 显示已激活
         showOnlyActive = GUILayout.Toggle(showOnlyActive, "仅激活", EditorStyles.toolbarButton);
@@ -314,8 +307,7 @@ public class UIEditorManagerWindow : EditorWindow
 
         if (GUILayout.Button("恢复默认", GUILayout.Height(25)))
         {
-            //TODO
-            customScanPaths = new List<string> { UI_PREFABS_PATH };  //自己配置
+            customScanPaths = new List<string> { "Assets/Project/Prefabs/GUI" };  //自己配置
             SavePathConfig();
         }
         EditorGUILayout.EndHorizontal();
@@ -698,33 +690,37 @@ public class UIEditorManagerWindow : EditorWindow
         string name = prefab.name.ToLower();
         string folder = Path.GetDirectoryName(path).ToLower();
 
-        // 根据名称判断 - 更新为新的枚举名称
-        if (name.Contains("worldscene") || folder.Contains("worldscene")) return UILayer.WorldScene;
-        if (name.Contains("worldobject") || folder.Contains("worldobject")) return UILayer.WorldObject;
-        if (name.Contains("worldeffect") || folder.Contains("worldeffect")) return UILayer.WorldEffect;
-        if (name.Contains("draglayer") || folder.Contains("draglayer")) return UILayer.DragLayer;
-        if (name.Contains("mainlayer") || folder.Contains("mainlayer")) return UILayer.MainLayer;
-        if (name.Contains("screenlayer") || folder.Contains("screenlayer")) return UILayer.ScreenLayer;
-        if (name.Contains("modallayer") || folder.Contains("modallayer")) return UILayer.ModalLayer;
-        if (name.Contains("poplayer") || folder.Contains("poplayer")) return UILayer.PopLayer;
-        if (name.Contains("guidelayer") || folder.Contains("guidelayer")) return UILayer.GuideLayer;
-        if (name.Contains("toplayer") || folder.Contains("toplayer")) return UILayer.TopLayer;
-        if (name.Contains("loadinglayer") || folder.Contains("loadinglayer")) return UILayer.LoadingLayer;
-        if (name.Contains("cursorlayer") || folder.Contains("cursorlayer")) return UILayer.CursorLayer;
+        // 将路径分割为各级目录名，用于精确段匹配（避免 "load" 匹配 "download" 这类误判）
+        var segments = new HashSet<string>(folder.Replace('\\', '/').Split('/'), StringComparer.OrdinalIgnoreCase);
+        bool HasSeg(string s) => segments.Contains(s);
 
-        // 根据文件夹路径判断
-        if (folder.Contains("world") || folder.Contains("scene")) return UILayer.WorldScene;
-        if (folder.Contains("object") || folder.Contains("character")) return UILayer.WorldObject;
-        if (folder.Contains("effect") || folder.Contains("damage")) return UILayer.WorldEffect;
-        if (folder.Contains("drag") || folder.Contains("follow")) return UILayer.DragLayer;
-        if (folder.Contains("pop") || folder.Contains("dialog")) return UILayer.PopLayer;
-        if (folder.Contains("modal") || folder.Contains("mask")) return UILayer.ModalLayer;
-        if (folder.Contains("guide") || folder.Contains("tutorial")) return UILayer.GuideLayer;
-        if (folder.Contains("top") || folder.Contains("notice")) return UILayer.TopLayer;
-        if (folder.Contains("loading") || folder.Contains("load")) return UILayer.LoadingLayer;
-        if (folder.Contains("cursor") || folder.Contains("mouse")) return UILayer.CursorLayer;
+        // 第一优先级：名称或文件夹含完整枚举名
+        if (name.Contains("worldscene")   || HasSeg("worldscene"))   return UILayer.WorldScene;
+        if (name.Contains("worldobject")  || HasSeg("worldobject"))  return UILayer.WorldObject;
+        if (name.Contains("worldeffect")  || HasSeg("worldeffect"))  return UILayer.WorldEffect;
+        if (name.Contains("draglayer")    || HasSeg("draglayer"))    return UILayer.DragLayer;
+        if (name.Contains("mainlayer")    || HasSeg("mainlayer"))    return UILayer.MainLayer;
+        if (name.Contains("screenlayer")  || HasSeg("screenlayer"))  return UILayer.ScreenLayer;
+        if (name.Contains("modallayer")   || HasSeg("modallayer"))   return UILayer.ModalLayer;
+        if (name.Contains("poplayer")     || HasSeg("poplayer"))     return UILayer.PopLayer;
+        if (name.Contains("guidelayer")   || HasSeg("guidelayer"))   return UILayer.GuideLayer;
+        if (name.Contains("toplayer")     || HasSeg("toplayer"))     return UILayer.TopLayer;
+        if (name.Contains("loadinglayer") || HasSeg("loadinglayer")) return UILayer.LoadingLayer;
+        if (name.Contains("cursorlayer")  || HasSeg("cursorlayer"))  return UILayer.CursorLayer;
 
-        return UILayer.MainLayer; // 默认使用主界面层
+        // 第二优先级：按文件夹段名模糊匹配（精确到段，防止误判）
+        if (HasSeg("world")    || HasSeg("scene"))     return UILayer.WorldScene;
+        if (HasSeg("object")   || HasSeg("character")) return UILayer.WorldObject;
+        if (HasSeg("effect")   || HasSeg("damage"))    return UILayer.WorldEffect;
+        if (HasSeg("drag")     || HasSeg("follow"))    return UILayer.DragLayer;
+        if (HasSeg("pop")      || HasSeg("dialog"))    return UILayer.PopLayer;
+        if (HasSeg("modal")    || HasSeg("mask"))      return UILayer.ModalLayer;
+        if (HasSeg("guide")    || HasSeg("tutorial"))  return UILayer.GuideLayer;
+        if (HasSeg("top")      || HasSeg("notice"))    return UILayer.TopLayer;
+        if (HasSeg("loading")  || HasSeg("load"))      return UILayer.LoadingLayer;
+        if (HasSeg("cursor")   || HasSeg("mouse"))     return UILayer.CursorLayer;
+
+        return UILayer.MainLayer; // 默认主界面层
     }
 
     void FilterUIItems()
@@ -742,7 +738,7 @@ public class UIEditorManagerWindow : EditorWindow
              item.folderPath.Contains(searchText, System.StringComparison.OrdinalIgnoreCase) ||
              item.prefabPath.Contains(searchText, System.StringComparison.OrdinalIgnoreCase)) &&
             (!showOnlyActive || item.isActive) &&
-           (filterLayer == UILayer.MainLayer || item.uiLayer == filterLayer) //新的默认层级
+           (!_filterByLayer || item.uiLayer == filterLayer)
         );
 
         foreach (var item in filteredItems)
