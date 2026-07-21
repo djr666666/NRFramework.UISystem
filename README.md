@@ -345,6 +345,7 @@ DestroyAllWidgets();          // 全清（面板销毁时自动调）
 
 > 📸 ![打开UI编辑器](Assets/Image/wid用法1.png)
 > 📸 ![打开UI编辑器](Assets/Image/wid用法2.png)
+> 📸 ![打开UI编辑器](Assets/Image/wid用法3.png)
 
 
 ## 🔗 事件绑定
