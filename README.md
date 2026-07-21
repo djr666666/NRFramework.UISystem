@@ -184,8 +184,46 @@ root.ClosePanel<Pnl_Main_Temp>();      // 关闭(隐藏并清理)
 root.DestroyPanel<Pnl_Main_Temp>();    // 彻底销毁
 root.SetPanelVisible<Pnl_Main_Temp>(false); // 只隐藏不销毁
 ```
+### 4. 自己写好了方法
+```csharp
+      // 自己根据，本地到处配置数据，泛型加载，也可以自定义，（甚至可以走luban配表）
+        /// <summary> 方案一 UI框架结合 LuBan 配置表  </summary>
+ 
+    public static T OpenUI<T>() where T : UIPanel
+    {
+        T uiPanel = null;
+        //var data = Models.ui.GetUIPanelData(typeof(T).Name);
+        //if (data != null)
+        //{
+        //    var uiroot = Game.Instance.uiRoots[(int)data.PanelType];
+        //    uiPanel = uiroot.uI.CreatePanel<T>(data.Name, data.Path);
+        //    uiPanel.gameObject.transform.SetParent(uiroot.obj.transform);
+        //}
+        return uiPanel;
+    }
 
-> 📸 建议截图：游戏启动脚本里调用 `Game.Instance.Init()`；以及打开某界面的调用处。
+
+    /// <summary> 方案二 本地UI编辑器  </summary>
+    
+    public static T OpenUI_Local<T>() where T : UIPanel
+    {
+        T uiPanel = null;
+        var csName = typeof(T).Name;
+        string result = csName.Replace("_Temp", "");
+        int panelType = (int)UIPathConstants.UILayerDictionary[result];
+        var uiroot = Game.Instance.uiRoots[panelType];
+        var path = UIPathConstants.UIPathDictionary[result];
+        uiPanel = uiroot.uI.CreatePanel<T>(csName, path);
+        uiPanel.gameObject.transform.SetParent(uiroot.obj.transform);
+    
+
+        //UnityEngine.Debug.Log($"csName  ={csName} result ={result}  uiroot ={uiroot} path ={path}");
+        return uiPanel;
+    }
+```
+> 📸 ![打开UI编辑器](Assets/Image/快速开始1.png)
+> 📸 ![打开UI编辑器](Assets/Image/快速开始2.png)
+> 📸 ![打开UI编辑器](Assets/Image/快速开始3.png)
 
 ---
 
