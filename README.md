@@ -318,6 +318,7 @@ for (int i = 0; i < dataList.Count; i++)
 **区别一句话：**
 - `CreateWidget(behaviour)` = **包裹现有节点**，不复制（界面里本来就有的模块）。
 - `CloneWidget(templateBehaviour)` = **Instantiate 复制一份**（同一个模板做多个，如列表）。
+- 生成的效果跟平时生成的效果一样
 
 ### 销毁 Widget
 ```csharp
@@ -326,7 +327,8 @@ DestroyWidget<Wdg_Header_Temp>();
 DestroyAllWidgets();          // 全清（面板销毁时自动调）
 ```
 
-> 📸 建议截图：模板节点（隐藏的 Preb_Item）+ 克隆填充后的列表效果。
+> 📸 ![打开UI编辑器](Assets/Image/wid用法1.png)
+> 📸 ![打开UI编辑器](Assets/Image/wid用法2.png)
 
 ---
 
