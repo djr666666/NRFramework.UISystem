@@ -365,7 +365,7 @@ Create → OnBindCompsAndEvents(自动绑) → OnCreating → OnCreated → OnSt
 关闭：OnDestroying → OnUnbindCompsAndEvents → OnDestroyed（子 Widget 自动递归销毁）
 ```
 - 初始化写 `OnCreated`；清理写 `OnDestroying`。
-- 需要每帧：`OnAddUpdate(cb)` / `OnRemoveUpdate(cb)`。
+- 需要每帧：`OnAddUpdate(cb)` / `OnRemoveUpdate(cb)`。（怕有些特定需求真的需要update 不会写在自动生成模板里头，需要手动调用什么时候需要启动update 什么时候需要关闭update（90%功能不需要这个，同时也增加了切出游戏，和回到游戏方法））
 
 ---
 
