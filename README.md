@@ -153,6 +153,22 @@
 > 📸 ![打开UI编辑器](Assets/Image/生成路径_1.png)
 > 📸 ![打开UI编辑器](Assets/Image/生成路径_2.png)
 
+## 🔑 生成的路径常量（UIPathConstants）
+
+编辑器"生成路径常量"后，每个界面得到两个常量，直接喂给 `CreatePanel`：
+
+```csharp
+// 生成物示例
+public const string Pnl_Main_UIPanel = "Assets/Project/Prefabs/Gui/Main/Pnl_Main.prefab";
+public const int    Pnl_Main_UIlayer = 4;   // MainLayer
+
+// 用法：路径 + 层级 一起用，零手写字符串
+Game.Instance.uiRoots[UIPathConstants.Pnl_Main_UIlayer].uI
+    .CreatePanel<Pnl_Main_Temp>(UIPathConstants.Pnl_Main_UIPanel);
+```
+还生成 `UIPathDictionary` / `UILayerDictionary` 供按名查。
+
+---
 ---
 
 ### 十、常见问题
@@ -330,47 +346,6 @@ DestroyAllWidgets();          // 全清（面板销毁时自动调）
 > 📸 ![打开UI编辑器](Assets/Image/wid用法1.png)
 > 📸 ![打开UI编辑器](Assets/Image/wid用法2.png)
 
----
-
-## 📇 UI 编辑器工具（Tools ▸ UI管理器）
-
-一个可视化面板，管理所有 UI 预制体的层级 + 体检优化。
-
-### 功能
-- **扫描**：扫指定路径下所有带 `UIPanelBehaviour` 的预制体，自动识别层级。
-- **层级配置**：每个界面用下拉改层级；**待确认区**(橙色)常驻显示自动识别、未确认的新界面，点 ✓ 或改层级即确认。
-- **静态体检（不用打包）**：每行显示
-  - `~估N` 预估批次 / `实N` 运行时实测批次（Play 模式点【测】）
-  - `X.XM` 纹理**运行内存**（非打包体积）
-  - `射线N` RaycastTarget 开启数（纯装饰的可关，省输入开销）
-- **生成路径常量**：一键生成 `UIPathConstants` 类（见下）。
-
-### 用法
-1. 菜单 **Tools ▸ UI管理器** 打开。
-2. 点 **扫描** → 列表按层级分组。
-3. 核对/调整层级（待确认区的点 ✓ 确认）→ **保存配置**。
-4. 点 **生成路径常量** → 生成 `Assets/Resources/UIPath.cs`。
-
-> 📸 建议截图：整个 UI管理器面板（层级分组 + 批次/内存/射线列）、待确认区、点生成常量的成功弹窗。
-
----
-
-## 🔑 生成的路径常量（UIPathConstants）
-
-编辑器"生成路径常量"后，每个界面得到两个常量，直接喂给 `CreatePanel`：
-
-```csharp
-// 生成物示例
-public const string Pnl_Main_UIPanel = "Assets/Project/Prefabs/Gui/Main/Pnl_Main.prefab";
-public const int    Pnl_Main_UIlayer = 4;   // MainLayer
-
-// 用法：路径 + 层级 一起用，零手写字符串
-Game.Instance.uiRoots[UIPathConstants.Pnl_Main_UIlayer].uI
-    .CreatePanel<Pnl_Main_Temp>(UIPathConstants.Pnl_Main_UIPanel);
-```
-还生成 `UIPathDictionary` / `UILayerDictionary` 供按名查。
-
----
 
 ## 🔗 事件绑定
 Base 类已自动 `BindEvent`，逻辑类里重写对应回调即可：
