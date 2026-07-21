@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class UIEditorManagerWindow : EditorWindow
 {
@@ -22,6 +23,20 @@ public class UIEditorManagerWindow : EditorWindow
         public UILayer uiLayer;       // UI层级
         public bool isActive = true;  // 是否激活
         public int sortOrder = 0;     // 排序值
+        public bool layerConfirmed = true; // 层级是否已人工确认(false=新扫描自动识别的，进"待确认区")
+
+        // —— 静态体检(扫描时分析预制体，仅供参考；精确 DrawCall 需运行时测) ——
+        public int graphicCount;   // 图形总数(Image/Text/RawImage/TMP)
+        public int imageCount;     // 图片数
+        public int textCount;      // 文本数(含TMP)
+        public int maskCount;      // Mask/RectMask2D 数(会打断合批)
+        public int materialCount;  // 不同材质数
+        public int textureCount;   // 不同纹理/图集数
+        public int estBatches;     // 预估批次(粗算，参考用)
+        public bool analyzed;      // 是否已体检过
+        public int realBatches = -1; // 运行时实测批次(-1=未测)
+        public long memBytes;      // 依赖纹理内存(字节，加载后≈占多少RAM)
+        public int raycastCount;   // 开了 raycastTarget 的图形数(交互射线开销)
     }
 
     public enum UILayer
@@ -78,6 +93,12 @@ public class UIEditorManagerWindow : EditorWindow
     private UILayer filterLayer = UILayer.MainLayer;
     private bool _filterByLayer = false; // false = 显示全部层级，true = 按 filterLayer 过滤
     private bool showSettings = false;
+    private bool hideEmptyLayers = false; // 隐藏空层级，列表更聚焦
+    private bool _dirty = false;          // 有未保存改动(改层级/激活但没点保存)
+
+    // 标脏 + 刷新标题(*表示有未保存改动)
+    void MarkDirty() { _dirty = true; if (this != null) titleContent.text = "UI管理器 *"; }
+    void ClearDirty() { _dirty = false; if (this != null) titleContent.text = "UI管理器"; }
 
     // 展开状态
     private Dictionary<string, bool> layerFoldoutStates = new Dictionary<string, bool>();
@@ -132,6 +153,19 @@ public class UIEditorManagerWindow : EditorWindow
         }
     }
 
+    // 关窗口时若有未保存改动，提醒保存(防手滑丢层级/激活配置)
+    void OnDestroy()
+    {
+        if (_dirty)
+        {
+            if (EditorUtility.DisplayDialog("有未保存的改动",
+                "你修改了层级/激活状态但还没保存，是否保存？", "保存", "不保存"))
+            {
+                SaveConfig();
+            }
+        }
+    }
+
     void InitializeAllLayers()
     {
         // 确保所有预定义层级都在字典中存在
@@ -177,6 +211,10 @@ public class UIEditorManagerWindow : EditorWindow
 
     void OnGUI()
     {
+        // 鼠标移动就重绘 —— 否则窗口静止时 tooltip 不会弹(悬停会亮但没提示)
+        wantsMouseMove = true;
+        if (Event.current.type == EventType.MouseMove) Repaint();
+
         DrawToolbar();
         DrawSettingsPanel();
         DrawStatistics();
@@ -197,11 +235,14 @@ public class UIEditorManagerWindow : EditorWindow
         // 加载配置按钮"📂 加载配置" 
         if (GUILayout.Button(UnityIconsEx.FolderContent("加载配置"), EditorStyles.toolbarButton, GUILayout.Width(100), GUILayout.Height(50)))
         {
-            LoadConfig();
+            LoadConfig(true);   // 手动点 → 浮层反馈
         }
 
-        // 设置按钮"⚙️ 设置"
+        // 设置按钮"⚙️ 设置"（开启时高亮蓝底，做出"选中tab"的感觉）
+        Color tbg0 = GUI.backgroundColor;
+        if (showSettings) GUI.backgroundColor = new Color(0.29f, 0.55f, 0.95f);
         showSettings = GUILayout.Toggle(showSettings, UnityIconsEx.SettingsContent("设置"), EditorStyles.toolbarButton, GUILayout.Width(100), GUILayout.Height(50));
+        GUI.backgroundColor = tbg0;
 
         // 搜索框
         EditorGUILayout.LabelField("搜索:", GUILayout.Width(40));
@@ -220,6 +261,9 @@ public class UIEditorManagerWindow : EditorWindow
 
         // 显示已激活
         showOnlyActive = GUILayout.Toggle(showOnlyActive, "仅激活", EditorStyles.toolbarButton);
+
+        // 隐藏空层级
+        hideEmptyLayers = GUILayout.Toggle(hideEmptyLayers, "隐藏空层", EditorStyles.toolbarButton);
 
         GUILayout.FlexibleSpace();
 
@@ -265,12 +309,16 @@ public class UIEditorManagerWindow : EditorWindow
             EditorGUILayout.BeginHorizontal();
             customScanPaths[i] = EditorGUILayout.TextField($"路径 {i + 1}:", customScanPaths[i]);
 
-            //"🗑️"
+            //"🗑️"（红色 hover 感：删除用红底）
+            Color dbg = GUI.backgroundColor;
+            GUI.backgroundColor = new Color(0.85f, 0.32f, 0.29f);
             if (GUILayout.Button(UnityIconsEx.Delete, GUILayout.Width(30)))
             {
                 customScanPaths.RemoveAt(i);
+                GUI.backgroundColor = dbg;
                 break;
             }
+            GUI.backgroundColor = dbg;
             EditorGUILayout.EndHorizontal();
         }
 
@@ -321,23 +369,57 @@ public class UIEditorManagerWindow : EditorWindow
         int total = allUIItems.Count;
         int active = allUIItems.Count(i => i.isActive);
 
-        // 统计每个层级的数量
-        var layerStats = new List<string>();
+        EditorGUILayout.BeginHorizontal("box");
+        GUILayout.Label("📊", GUILayout.Width(20));
+        GUILayout.Label($"总数 {total}", EditorStyles.boldLabel, GUILayout.Width(64));
+
+        Color old = GUI.contentColor;
+        GUI.contentColor = new Color(0.40f, 0.85f, 0.42f);
+        GUILayout.Label($"激活 {active}", EditorStyles.boldLabel, GUILayout.Width(64));
+        GUI.contentColor = old;
+
+        // 彩色计数 chip：只显示有内容的层级(省得挤)
         foreach (var layer in allLayers)
         {
-            int count = 0;
-            if (layerItems.ContainsKey(layer))
+            int count = layerItems.ContainsKey(layer) ? layerItems[layer].Count : 0;
+            if (count == 0) continue;
+
+            Rect dot = GUILayoutUtility.GetRect(9, 9, GUILayout.Width(9), GUILayout.Height(16));
+            dot.height = 9; dot.y += 4;
+            EditorGUI.DrawRect(dot, LayerColor(layer));
+
+            // chip 可点击 → 直接筛选该层(再点"层级"开关可取消)
+            var chip = new GUIContent($"{GetLayerName(layer)} {count}", "点击只看该层级");
+            if (GUILayout.Button(chip, EditorStyles.miniLabel))
             {
-                count = layerItems[layer].Count;
+                _filterByLayer = true; filterLayer = layer; FilterUIItems();
             }
-            layerStats.Add($"{GetLayerName(layer)}:{count}");
+            GUILayout.Space(6);
         }
 
-        EditorGUILayout.BeginHorizontal("box");
-        GUILayout.Label("📊 统计:", EditorStyles.boldLabel);
-        GUILayout.Label($"总数: {total}", GUILayout.Width(70));
-        GUILayout.Label($"激活: {active}", GUILayout.Width(70));
-        GUILayout.Label($"层级: {string.Join(" ", layerStats)}", GUILayout.ExpandWidth(true));
+        // 批次列图例：告诉别的开发者 ~估 / 实 是什么
+        GUILayout.Space(10);
+        Color lg = GUI.contentColor;
+        GUI.contentColor = new Color(1f, 1f, 1f, 0.7f);
+        GUILayout.Label("｜ 批次列：", EditorStyles.miniLabel, GUILayout.Width(58));
+        GUI.contentColor = new Color(0.4f, 0.8f, 0.45f);
+        GUILayout.Label("~估=静态预估", EditorStyles.miniLabel, GUILayout.Width(78));
+        GUI.contentColor = new Color(0.4f, 0.7f, 1f);
+        GUILayout.Label("实=实测(点【测】)", EditorStyles.miniLabel, GUILayout.Width(108));
+        GUI.contentColor = new Color(1f, 1f, 1f, 0.7f);
+        GUILayout.Label("XM=纹理运行内存(非打包体积)  射线N=RaycastTarget开启数(纯装饰可关)", EditorStyles.miniLabel, GUILayout.Width(360));
+        GUI.contentColor = lg;
+
+        GUILayout.FlexibleSpace();
+
+        // Play 模式下显示当前帧真实总批次(整个 Game 视图)，实测的参考基准
+        if (EditorApplication.isPlaying)
+        {
+            Color pcc = GUI.contentColor;
+            GUI.contentColor = new Color(0.4f, 0.7f, 1f);
+            GUILayout.Label($"▶ 当前帧总批次 {UnityStats.batches}", EditorStyles.miniBoldLabel);
+            GUI.contentColor = pcc;
+        }
         EditorGUILayout.EndHorizontal();
     }
 
@@ -351,6 +433,13 @@ public class UIEditorManagerWindow : EditorWindow
         }
         else
         {
+            // —— 顶部"待确认层级"区：自动识别、还没人工确认的 UI 单独放这，样式明显区别于真实层级 ——
+            var pending = new List<UIItem>();
+            foreach (var kv in layerItems)
+                foreach (var it in kv.Value)
+                    if (!it.layerConfirmed) pending.Add(it);
+            DrawPendingSection(pending);   // 常驻显示(空时也在，兼作"记得点扫描"的引导)
+
             // 遍历所有预定义的层级，确保每个层级都显示
             foreach (var layer in allLayers.OrderBy(l => (int)l))
             {
@@ -371,13 +460,35 @@ public class UIEditorManagerWindow : EditorWindow
                     items = new List<UIItem>();
                 }
 
+                // 该层级只显示"已确认"的项(待确认的在顶部区)
+                var shown = items.Where(i => i.layerConfirmed).ToList();
+
                 // 层级标题 - 显示中文名称、层级值和数量
-                int itemCount = items.Count;
-                EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+                int itemCount = shown.Count;
+
+                // 隐藏空层级(勾选后跳过没内容的层)
+                if (hideEmptyLayers && itemCount == 0) continue;
+
+                // 标题栏底纹染上层级主题色(有内容深一点，空层淡一点)，分区感更强
+                var headStyle = new GUIStyle(EditorStyles.toolbar) { fixedHeight = 24 };
+                Color hbg0 = GUI.backgroundColor;
+                GUI.backgroundColor = Color.Lerp(Color.white, LayerColor(layer), itemCount > 0 ? 0.55f : 0.18f);
+                EditorGUILayout.BeginHorizontal(headStyle, GUILayout.Height(24));
+                GUI.backgroundColor = hbg0;   // 立刻还原，别染到里面的文字/圆点
+
+                // 层级主题色圆点
+                Rect gdot = GUILayoutUtility.GetRect(14, 24, GUILayout.Width(14), GUILayout.Height(24));
+                gdot.x += 3; gdot.y += 8; gdot.width = 9; gdot.height = 9;
+                Color gdc = LayerColor(layer);        // 空层级也用本色，只是调淡提示"暂无内容"
+                if (itemCount == 0) gdc.a = 0.4f;
+                EditorGUI.DrawRect(gdot, gdc);
+
+                var foldStyle = new GUIStyle(EditorStyles.foldout) { fontSize = 13, fontStyle = FontStyle.Bold };
                 layerFoldoutStates[layerKey] = EditorGUILayout.Foldout(
                     layerFoldoutStates[layerKey],
-                    $" Layer  =  {layer}  --- {itemCount}个UI",
-                    true
+                    $" {GetLayerName(layer)}  ·  {layer}   ({itemCount})",
+                    true,
+                    foldStyle
                 );
 
                 // 如果该层级为空，显示提示
@@ -394,25 +505,25 @@ public class UIEditorManagerWindow : EditorWindow
                     EditorGUILayout.BeginVertical("box");
 
                     // 显示该层级下的所有UI项
-                    if (items.Count == 0)
+                    if (shown.Count == 0)
                     {
-                        // 如果该层级下没有UI，显示提示信息
-                        EditorGUILayout.BeginHorizontal();
-                        GUILayout.Space(20);
-                        EditorGUILayout.HelpBox($"该层级下暂无UI预制体", MessageType.Info);
-                        EditorGUILayout.EndHorizontal();
+                        // 空层级：一行小灰字，别用占地方的 HelpBox
+                        Color ec0 = GUI.contentColor;
+                        GUI.contentColor = new Color(1f, 1f, 1f, 0.4f);
+                        GUILayout.Label("     — 该层暂无 UI —", EditorStyles.miniLabel);
+                        GUI.contentColor = ec0;
                     }
                     else
                     {
                         // 按排序值和名称排序
-                        var sortedItems = items
+                        var sortedItems = shown
                             .OrderBy(i => i.sortOrder)
                             .ThenBy(i => i.prefabName)
                             .ToList();
 
-                        foreach (var item in sortedItems)
+                        for (int ri = 0; ri < sortedItems.Count; ri++)
                         {
-                            DrawUIItem(item);
+                            DrawUIItem(sortedItems[ri], ri);
                         }
                     }
 
@@ -424,16 +535,26 @@ public class UIEditorManagerWindow : EditorWindow
         EditorGUILayout.EndScrollView();
     }
 
-    void DrawUIItem(UIItem item)
+    void DrawUIItem(UIItem item, int rowIndex = 0)
     {
-        EditorGUILayout.BeginHorizontal("box");
+        // 斑马纹：奇数行底色略深，长列表更好扫读
+        Color rbg0 = GUI.backgroundColor;
+        if (rowIndex % 2 == 1) GUI.backgroundColor = new Color(0.86f, 0.87f, 0.9f);
+        Rect rowRect = EditorGUILayout.BeginHorizontal("box");
+        GUI.backgroundColor = rbg0;
+        GUILayout.Space(5);   // 给左侧色条留位置
 
         // 激活开关
         bool newActive = EditorGUILayout.Toggle(item.isActive, GUILayout.Width(20));
         if (newActive != item.isActive)
         {
             item.isActive = newActive;
+            MarkDirty();
         }
+
+        // 禁用项整行置灰(一眼看出哪些被关掉)，末尾还原
+        Color rowColor0 = GUI.color;
+        if (!item.isActive) GUI.color = new Color(1f, 1f, 1f, 0.45f);
 
         // 预制体名称（可点击）
         GUIContent nameContent = new GUIContent(item.prefabName,
@@ -444,15 +565,33 @@ public class UIEditorManagerWindow : EditorWindow
             OpenPrefab(item.prefabPath);
         }
 
+        // 待确认项：一个绿色 ✓ 按钮，点了就确认(移出待确认区)
+        if (!item.layerConfirmed)
+        {
+            Color cb = GUI.backgroundColor;
+            GUI.backgroundColor = new Color(0.30f, 0.70f, 0.38f);
+            if (GUILayout.Button(new GUIContent("✓", "确认该层级(自动识别的，确认后移入正式层级分组)"), GUILayout.Width(26)))
+            {
+                item.layerConfirmed = true;
+                MarkDirty();
+            }
+            GUI.backgroundColor = cb;
+        }
+
         // 层级选择 - 这里会触发重新分组
         EditorGUILayout.LabelField("层级:", GUILayout.Width(35));
         UILayer oldLayer = item.uiLayer;
+        Color lbg0 = GUI.backgroundColor;
+        GUI.backgroundColor = Color.Lerp(Color.white, LayerColor(item.uiLayer), 0.35f);  // 下拉染层级色，和左侧色条呼应
         UILayer newLayer = (UILayer)EditorGUILayout.EnumPopup(item.uiLayer, GUILayout.Width(100));
+        GUI.backgroundColor = lbg0;
         if (newLayer != oldLayer)
         {
             item.uiLayer = newLayer;
+            item.layerConfirmed = true;   // 手动选了层级 = 确认，移出待确认区
             // 层级改变，重新分组
             UpdateItemLayer(item, oldLayer, newLayer);
+            MarkDirty();
         }
 
         // 排序值
@@ -468,28 +607,88 @@ public class UIEditorManagerWindow : EditorWindow
         //// 文件夹路径显示（仅显示GUI下的相对路径）
         //EditorGUILayout.LabelField(item.folderPath, EditorStyles.miniLabel, GUILayout.Width(200));
 
-        // 完整路径显示（包含预制体本身）
-        EditorGUILayout.LabelField(item.prefabPath, EditorStyles.label, GUILayout.ExpandWidth(true));
+        // 完整路径显示（可直接选中复制：鼠标划选 → Ctrl+C）
+        Color pc = GUI.contentColor;
+        GUI.contentColor = new Color(0.45f, 0.68f, 1f);   // 淡蓝，像可复制的链接
+        EditorGUILayout.SelectableLabel(item.prefabPath, EditorStyles.label,
+            GUILayout.Height(EditorGUIUtility.singleLineHeight), GUILayout.ExpandWidth(true));
+        GUI.contentColor = pc;
+
+        // 批次小标：估(静态) + 实(运行时)，红绿灯着色，悬停看构成
+        if (item.analyzed)
+        {
+            string tip = $"静态预估(参考,精确需运行时测)\n" +
+                         $"图形 {item.graphicCount}(图片{item.imageCount}/文本{item.textCount})\n" +
+                         $"材质 {item.materialCount} · 纹理/图集 {item.textureCount} · Mask {item.maskCount}\n" +
+                         $"预估批次 ≈ {item.estBatches}" +
+                         (item.realBatches >= 0 ? $"\n运行时实测 = {item.realBatches}" : "\n(实测:Play模式下点【测】)");
+            Color bc0 = GUI.contentColor;
+            GUI.contentColor = EstBatchColor(item.estBatches);
+            GUILayout.Label(new GUIContent($"~估{item.estBatches}", tip), EditorStyles.miniBoldLabel, GUILayout.Width(46));
+            if (item.realBatches >= 0)
+            {
+                GUI.contentColor = EstBatchColor(item.realBatches);
+                GUILayout.Label(new GUIContent($"实{item.realBatches}", tip), EditorStyles.miniBoldLabel, GUILayout.Width(42));
+            }
+            else
+            {
+                GUI.contentColor = new Color(1f, 1f, 1f, 0.4f);
+                GUILayout.Label(new GUIContent("实?", "Play模式下点右侧【测】实测"), EditorStyles.miniLabel, GUILayout.Width(42));
+            }
+            GUI.contentColor = bc0;
+        }
+        else
+        {
+            GUILayout.Label(new GUIContent("未测", "点【扫描】做静态体检"), EditorStyles.miniLabel, GUILayout.Width(88));
+        }
+
+        // 内存(纹理) + 射线目标
+        if (item.analyzed)
+        {
+            float mb = item.memBytes / 1048576f;
+            Color mc0 = GUI.contentColor;
+            GUI.contentColor = mb < 2f ? new Color(0.4f, 0.8f, 0.45f) : mb < 6f ? new Color(0.95f, 0.7f, 0.2f) : new Color(0.9f, 0.35f, 0.3f);
+            GUILayout.Label(new GUIContent($"{mb:0.0}M",
+                    $"纹理运行内存 ≈ {mb:0.00} MB\n加载到内存(RAM)后占用，纹理为主，不用build\n注意：这是【运行内存】，不是打包磁盘体积；共享图集会各行重复计，别直接相加\n想降内存靠：压缩格式/降分辨率/关Mipmap(打图集主要降的是批次)"),
+                EditorStyles.miniBoldLabel, GUILayout.Width(46));
+            GUI.contentColor = item.raycastCount <= 8 ? new Color(0.4f, 0.8f, 0.45f) : item.raycastCount <= 20 ? new Color(0.95f, 0.7f, 0.2f) : new Color(0.9f, 0.35f, 0.3f);
+            GUILayout.Label(new GUIContent($"射线{item.raycastCount}",
+                    $"raycastTarget 处于【开启】状态的图形数：{item.raycastCount}\n纯装饰/不需要接收点击的，把 Image/Text 的 Raycast Target 取消勾选即可省输入射线开销"),
+                EditorStyles.miniBoldLabel, GUILayout.Width(48));
+            GUI.contentColor = mc0;
+        }
 
         // 操作按钮
-        EditorGUILayout.BeginHorizontal(GUILayout.Width(90));
+        EditorGUILayout.BeginHorizontal(GUILayout.Width(120));
+
+        // 实测批次 "测"(Play模式下有效)
+        Color mb0 = GUI.backgroundColor;
+        if (EditorApplication.isPlaying) GUI.backgroundColor = new Color(0.29f, 0.55f, 0.95f);
+        if (GUILayout.Button(new GUIContent("测", "运行(Play)模式下实测该界面真实批次"), GUILayout.Width(26), GUILayout.Height(25)))
+        {
+            StartMeasureBatches(item);
+        }
+        GUI.backgroundColor = mb0;
 
 
 
-        // 打开文件夹路径 "📁"
-        if (GUILayout.Button(UnityIconsEx.Folder, GUILayout.Width(25), GUILayout.Height(25)))
+        // 在系统文件夹中定位 "📁"
+        var cFolder = new GUIContent(UnityIconsEx.Folder) { tooltip = "在系统文件夹中定位该预制体" };
+        if (GUILayout.Button(cFolder, GUILayout.Width(25), GUILayout.Height(25)))
         {
             EditorUtility.RevealInFinder(item.prefabPath);
         }
 
-        // 编辑预制体 "🔍"
-        if (GUILayout.Button(UnityIconsEx.Prefab, GUILayout.Width(25), GUILayout.Height(25)))
+        // 打开预制体编辑 "🔍"
+        var cPrefab = new GUIContent(UnityIconsEx.Prefab) { tooltip = "打开预制体(进入编辑模式)" };
+        if (GUILayout.Button(cPrefab, GUILayout.Width(25), GUILayout.Height(25)))
         {
             AssetDatabase.OpenAsset(AssetDatabase.LoadAssetAtPath<GameObject>(item.prefabPath));
         }
 
-        // 打开预制体"📦"
-        if (GUILayout.Button(UnityIconsEx.Info, GUILayout.Width(25), GUILayout.Height(25)))
+        // 在 Project 中选中定位 "📦"
+        var cInfo = new GUIContent(UnityIconsEx.Info) { tooltip = "在 Project 窗口中选中并高亮" };
+        if (GUILayout.Button(cInfo, GUILayout.Width(25), GUILayout.Height(25)))
         {
             OpenPrefab(item.prefabPath);
         }
@@ -497,6 +696,53 @@ public class UIEditorManagerWindow : EditorWindow
         EditorGUILayout.EndHorizontal();
 
         EditorGUILayout.EndHorizontal();
+
+        GUI.color = rowColor0;   // 还原禁用置灰的整行 tint
+
+        // 左侧色条：已确认=层级色；待确认=橙色警示
+        if (Event.current.type == EventType.Repaint)
+        {
+            Color stripe = item.layerConfirmed ? LayerColor(item.uiLayer) : new Color(0.95f, 0.6f, 0.15f);
+            EditorGUI.DrawRect(new Rect(rowRect.x + 2, rowRect.y + 1, 3, rowRect.height - 2), stripe);
+        }
+    }
+
+    // 顶部"待确认层级"独立模块：常驻、高标题、大字，带边框，和下面层级明显分开。
+    // 有待确认=橙色警示；无=平静绿 + 引导语(养成"新增预制体就点扫描"的习惯)。
+    void DrawPendingSection(List<UIItem> pending)
+    {
+        bool has = pending.Count > 0;
+        Color mark = has ? new Color(0.95f, 0.60f, 0.15f)    // 橙:有待确认
+                         : new Color(0.40f, 0.70f, 0.45f);   // 绿:一切就绪
+
+        EditorGUILayout.Space(4);
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);   // 外框 → 独立模块感
+
+        // 高标题条(~42px) + 大字
+        Rect head = GUILayoutUtility.GetRect(0, 42, GUILayout.ExpandWidth(true));
+        EditorGUI.DrawRect(head, new Color(mark.r, mark.g, mark.b, 0.16f));                 // 淡色底
+        EditorGUI.DrawRect(new Rect(head.x, head.y, 4, head.height), mark);                 // 左侧粗色条
+        EditorGUI.DrawRect(new Rect(head.x + 16, head.y + head.height / 2 - 5, 10, 10), mark); // 圆点
+
+        var titleStyle = new GUIStyle(EditorStyles.boldLabel) { fontSize = 15, alignment = TextAnchor.MiddleLeft };
+        var subStyle = new GUIStyle(EditorStyles.label) { fontSize = 12, alignment = TextAnchor.MiddleLeft, wordWrap = false };
+        titleStyle.normal.textColor = mark;
+
+        string title = has ? $"⚠  待确认层级（{pending.Count}）" : "✓  待确认层级（0）";
+        string sub = has ? "自动识别的层级，请核对后点 ✓ 或改下拉确认"
+                         : "新增了 UI 预制体？点上方【扫描】，新识别的会出现在这里";
+        GUI.Label(new Rect(head.x + 36, head.y + 4, head.width - 44, 20), title, titleStyle);
+        Color sc0 = GUI.contentColor; GUI.contentColor = new Color(1f, 1f, 1f, 0.75f);
+        GUI.Label(new Rect(head.x + 36, head.y + 22, head.width - 44, 18), sub, subStyle);
+        GUI.contentColor = sc0;
+
+        if (has)
+        {
+            for (int i = 0; i < pending.Count; i++) DrawUIItem(pending[i], i);
+        }
+
+        EditorGUILayout.EndVertical();
+        EditorGUILayout.Space(12);   // 和下面层级列表明显拉开距离
     }
 
     void UpdateItemLayer(UIItem item, UILayer oldLayer, UILayer newLayer)
@@ -541,19 +787,24 @@ public class UIEditorManagerWindow : EditorWindow
 
         GUILayout.FlexibleSpace();
 
-        // 保存按钮"💾 保存配置"
-        if (GUILayout.Button(UnityIconsEx.SaveContent("保存配置"), GUILayout.Width(100), GUILayout.Height(30)))
+        Color oldBg = GUI.backgroundColor;
+
+        // 保存按钮"💾 保存配置"（绿色主色）
+        GUI.backgroundColor = new Color(0.30f, 0.70f, 0.38f);
+        if (GUILayout.Button(UnityIconsEx.SaveContent("保存配置"), GUILayout.Width(110), GUILayout.Height(30)))
         {
             SaveConfig();
-            EditorUtility.DisplayDialog("保存成功", "UI配置已保存", "确定");
+            ShowNotification(new GUIContent("💾 已保存 UI 配置"));
         }
 
-        // 生成路径常量按钮 "🚀 生成路径常量"
-        if (GUILayout.Button(UnityIconsEx.StarContent("生成路径常量"), GUILayout.Width(120), GUILayout.Height(30)))
+        // 生成路径常量按钮 "🚀 生成路径常量"（蓝色强调）
+        GUI.backgroundColor = new Color(0.29f, 0.55f, 0.95f);
+        if (GUILayout.Button(UnityIconsEx.StarContent("生成路径常量"), GUILayout.Width(130), GUILayout.Height(30)))
         {
             GenerateUIPathConstants();
         }
 
+        GUI.backgroundColor = oldBg;
         GUILayout.FlexibleSpace();
 
         EditorGUILayout.EndHorizontal();
@@ -592,9 +843,18 @@ public class UIEditorManagerWindow : EditorWindow
         Dictionary<string, UIItem> existingItemsByGuid = existingItems.ToDictionary(item => item.guid);
         Dictionary<string, UIItem> existingItemsByPath = existingItems.ToDictionary(item => item.prefabPath);
 
-        // 3. 处理每个预制体
+        // 3. 处理每个预制体（带进度条）
+        int _scanTotal = allPrefabPaths.Count;
+        int _scanIdx = 0;
+        try
+        {
         foreach (string path in allPrefabPaths)
         {
+            _scanIdx++;
+            EditorUtility.DisplayProgressBar("扫描 UI 预制体",
+                $"({_scanIdx}/{_scanTotal})  {Path.GetFileName(path)}",
+                _scanTotal == 0 ? 1f : (float)_scanIdx / _scanTotal);
+
             GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
             if (prefab == null) continue;
 
@@ -614,6 +874,7 @@ public class UIEditorManagerWindow : EditorWindow
                 existingItemsByPath.TryGetValue(path, out existingItem))
             {
                 // 使用现有配置（保留层级、激活状态等设置）
+                AnalyzeUIStat(existingItem, prefab);   // 刷新静态体检
                 scannedItems.Add(existingItem);
                 AddItemToLayer(existingItem);
                 continue;
@@ -645,7 +906,8 @@ public class UIEditorManagerWindow : EditorWindow
                 fullFolderPath = folderPath,             // 完整文件夹路径
                 // 新发现的UI默认使用normalRoot层级
                 uiLayer = DetectUILayer(prefab, path),
-                sortOrder = 0
+                sortOrder = 0,
+                layerConfirmed = false   // 自动识别的，进"待确认区"让用户过目
             };
 
             // 如果没有检测到明确层级，使用MainLayer作为默认
@@ -654,18 +916,33 @@ public class UIEditorManagerWindow : EditorWindow
                 // 可以在这里添加更多默认层级判断逻辑
             }
 
+            AnalyzeUIStat(item, prefab);   // 静态体检
             scannedItems.Add(item);
             AddItemToLayer(item);
+        }
+        }
+        finally
+        {
+            EditorUtility.ClearProgressBar();   // 保证异常也清掉进度条，不卡死编辑器
         }
 
         // 4. 更新数据
         allUIItems = scannedItems;
 
         FilterUIItems();
-        Debug.Log($"扫描完成，找到 {allUIItems.Count} 个UI预制体（新发现 {allUIItems.Count - existingItems.Count} 个）");
 
-        // 5. 自动保存配置（可选）
+        int newCount = allUIItems.Count - existingItems.Count;
+        Debug.Log($"扫描完成，找到 {allUIItems.Count} 个UI预制体（新发现 {newCount} 个）");
+
+        // 5. 自动保存配置
         SaveConfig();
+
+        // 6. 完成弹窗：明确告诉用户结果，避免只打log被忽略("像点了没反应")
+        EditorUtility.DisplayDialog("扫描完成",
+            $"共找到 {allUIItems.Count} 个 UI 预制体\n" +
+            $"其中新发现 {newCount} 个\n\n" +
+            $"配置已自动保存到 Resources/UIConfig.json",
+            "确定");
     }
 
     void AddItemToLayer(UIItem item)
@@ -721,6 +998,134 @@ public class UIEditorManagerWindow : EditorWindow
         if (HasSeg("cursor")   || HasSeg("mouse"))     return UILayer.CursorLayer;
 
         return UILayer.MainLayer; // 默认主界面层
+    }
+
+    // 静态体检：数图形/材质/纹理/Mask，粗估批次。预制体已加载(扫描时调)，不额外开销。
+    // 注意：这是"静态预估"，合批的运行时因素(渲染顺序/图集打包)算不到，精确值请用运行时测。
+    void AnalyzeUIStat(UIItem item, GameObject prefab)
+    {
+        if (prefab == null) return;
+        var graphics = prefab.GetComponentsInChildren<Graphic>(true);
+
+        item.graphicCount = graphics.Length;
+        item.imageCount = graphics.Count(g => g is Image || g is RawImage);
+        item.textCount = graphics.Count(g => g.GetType().Name.Contains("Text")); // UI.Text + TMP 都含"Text"
+        item.maskCount = prefab.GetComponentsInChildren<Mask>(true).Length
+                       + prefab.GetComponentsInChildren<RectMask2D>(true).Length;
+        item.materialCount = graphics.Where(g => g != null).Select(g => g.material).Distinct().Count();
+        item.textureCount = graphics.Select(g => g.mainTexture).Where(t => t != null).Distinct().Count();
+
+        // 预估批次(粗算)：不同(材质×纹理)组合 + 每个Mask打断算+1。仅参考。
+        int matTex = graphics.Where(g => g.enabled)
+                             .Select(g => (g.material, g.mainTexture))
+                             .Distinct().Count();
+        item.estBatches = Mathf.Max(1, matTex) + item.maskCount;
+
+        // 射线目标数：开了 raycastTarget 的图形(纯装饰却开着=浪费，可关)
+        item.raycastCount = graphics.Count(g => g.raycastTarget);
+
+        // 依赖纹理内存(加载后≈占多少RAM)：对预制体所有纹理依赖求运行时内存
+        long mem = 0;
+        foreach (var dep in AssetDatabase.GetDependencies(item.prefabPath, true))
+        {
+            var tex = AssetDatabase.LoadAssetAtPath<Texture>(dep);
+            if (tex != null) mem += UnityEngine.Profiling.Profiler.GetRuntimeMemorySizeLong(tex);
+        }
+        item.memBytes = mem;
+
+        item.analyzed = true;
+    }
+
+    // ===== A. 运行时实测批次 =====
+    // UnityStats.batches 只在 Play 模式、Game 视图渲染后有效，且是"整帧"总数。
+    // 所以做法：记录加载前基准 → 实例化预制体 → 等几帧渲染 → 读差值 ≈ 该界面贡献的批次。
+    // 想更纯净：在一个尽量空的场景里进 Play 再测。
+    private UIItem _measItem;
+    private GameObject _measRoot;
+    private int _measBase;
+    private int _measFrames;
+
+    void StartMeasureBatches(UIItem item)
+    {
+        if (!EditorApplication.isPlaying)
+        {
+            EditorUtility.DisplayDialog("需要运行模式",
+                "实测真实批次要在 Play 模式(▶)下进行。\n\n请先点 Unity 顶部的 ▶ 进入运行模式(建议用一个尽量空的场景)，再点【测】。",
+                "知道了");
+            return;
+        }
+        // 自愈：若上次测量卡住了，先清干净再开始(不再永久卡死)
+        CleanupMeasure();
+
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(item.prefabPath);
+        if (prefab == null) { Debug.LogError($"[UI测批次] 加载失败: {item.prefabPath}"); return; }
+
+        try
+        {
+            Debug.Log($"[UI测批次] 开始测量: {item.prefabName}");
+            _measBase = UnityStats.batches;  // 加载前基准(上一帧)
+
+            var canvasGo = new GameObject("__UIBatchTest__");
+            var canvas = canvasGo.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvasGo.AddComponent<CanvasScaler>();
+            canvasGo.AddComponent<GraphicRaycaster>();
+            PrefabUtility.InstantiatePrefab(prefab, canvasGo.transform);
+            Canvas.ForceUpdateCanvases();
+
+            _measItem = item;
+            _measRoot = canvasGo;
+            _measFrames = 4;                 // 等几帧让它真正渲染出来
+            EditorApplication.update += MeasureTick;
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"[UI测批次] 启动失败: {e}");
+            CleanupMeasure();
+        }
+    }
+
+    void MeasureTick()
+    {
+        try
+        {
+            _measFrames--;
+            Debug.Log($"[UI测批次] tick 剩 {_measFrames} 帧");
+            if (_measFrames > 0) { Repaint(); return; }
+
+            int after = UnityStats.batches;
+            if (_measItem != null)
+            {
+                _measItem.realBatches = Mathf.Max(0, after - _measBase);
+                Debug.Log($"[UI测批次] {_measItem.prefabName} 实测 = {_measItem.realBatches} (基准{_measBase} → {after})");
+                ShowNotification(new GUIContent($"实测 {_measItem.prefabName} = {_measItem.realBatches} 批"));
+                MarkDirty();
+            }
+            CleanupMeasure();
+            Repaint();
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"[UI测批次] 测量出错: {e}");
+            CleanupMeasure();
+        }
+    }
+
+    // 清理测量状态(退订/销毁临时对象/复位)，可安全重复调用 → 自愈防卡死
+    void CleanupMeasure()
+    {
+        EditorApplication.update -= MeasureTick;
+        if (_measRoot != null) UnityEngine.Object.DestroyImmediate(_measRoot);
+        _measItem = null;
+        _measRoot = null;
+    }
+
+    // 预估批次的颜色(体检红绿灯)
+    Color EstBatchColor(int est)
+    {
+        if (est <= 8)  return new Color(0.40f, 0.80f, 0.45f); // 绿:轻
+        if (est <= 16) return new Color(0.95f, 0.70f, 0.20f); // 黄:中
+        return new Color(0.90f, 0.35f, 0.30f);                // 红:重
     }
 
     void FilterUIItems()
@@ -830,6 +1235,27 @@ public class UIEditorManagerWindow : EditorWindow
         }
     }
 
+    // 每个层级一个主题色（色条/圆点/统计chip 用），让面板一眼分区
+    Color LayerColor(UILayer layer)
+    {
+        switch (layer)
+        {
+            case UILayer.WorldScene:   return new Color(0.30f, 0.72f, 0.65f);
+            case UILayer.WorldObject:  return new Color(0.40f, 0.60f, 0.85f);
+            case UILayer.WorldEffect:  return new Color(0.55f, 0.75f, 0.40f);
+            case UILayer.DragLayer:    return new Color(0.60f, 0.60f, 0.66f);
+            case UILayer.MainLayer:    return new Color(0.29f, 0.62f, 1.00f); // 蓝
+            case UILayer.ScreenLayer:  return new Color(0.18f, 0.83f, 0.75f); // 青
+            case UILayer.ModalLayer:   return new Color(0.65f, 0.55f, 0.98f); // 紫
+            case UILayer.PopLayer:     return new Color(0.97f, 0.47f, 0.73f); // 粉
+            case UILayer.GuideLayer:   return new Color(0.22f, 0.77f, 0.81f); // 青蓝
+            case UILayer.TopLayer:     return new Color(0.49f, 0.55f, 1.00f); // 靛
+            case UILayer.LoadingLayer: return new Color(0.94f, 0.53f, 0.24f); // 橙
+            case UILayer.CursorLayer:  return new Color(0.55f, 0.58f, 0.62f); // 灰
+            default:                   return new Color(0.55f, 0.58f, 0.62f);
+        }
+    }
+
     // ========== 配置保存和加载 ==========
 
     void SaveConfig()
@@ -852,14 +1278,17 @@ public class UIEditorManagerWindow : EditorWindow
         File.WriteAllText(UI_CONFIG_FILE, json);
         AssetDatabase.Refresh();
 
+        ClearDirty();   // 已保存，清掉标题的 *
         Debug.Log($"配置已保存: {UI_CONFIG_FILE}");
     }
 
-    void LoadConfig()
+    // notify=true 时手动点按钮，弹轻量浮层反馈；自动加载(OnEnable/ShowWindow)传 false 不打扰
+    void LoadConfig(bool notify = false)
     {
         if (!File.Exists(UI_CONFIG_FILE))
         {
             Debug.LogWarning("配置文件不存在，请先扫描并保存配置");
+            if (notify) ShowNotification(new GUIContent("⚠ 无配置文件，请先扫描并保存"));
             return;
         }
 
@@ -871,6 +1300,9 @@ public class UIEditorManagerWindow : EditorWindow
             // 更新数据
             allUIItems = config.uiItems ?? new List<UIItem>();
             customScanPaths = config.scanPaths ?? new List<string>();
+
+            // 已存进配置的都算"已确认"(既兼容旧json无此字段，也符合"存过=你确认过")
+            foreach (var it in allUIItems) it.layerConfirmed = true;
 
             // 重新分组
             layerItems.Clear();
@@ -886,10 +1318,12 @@ public class UIEditorManagerWindow : EditorWindow
 
             FilterUIItems();
             Debug.Log($"配置加载完成: {allUIItems.Count} 个UI项");
+            if (notify) ShowNotification(new GUIContent($"✅ 已加载 {allUIItems.Count} 个 UI"));
         }
         catch (System.Exception e)
         {
             Debug.LogError($"加载配置失败: {e.Message}");
+            if (notify) ShowNotification(new GUIContent("❌ 加载失败，详见 Console"));
         }
     }
     void GenerateUIPathConstants()
@@ -897,6 +1331,25 @@ public class UIEditorManagerWindow : EditorWindow
         if (allUIItems.Count == 0)
         {
             EditorUtility.DisplayDialog("错误", "没有可生成的UI数据，请先扫描UI", "确定");
+            return;
+        }
+
+        // 重名校验：变量名(=预制体名)重复会让生成的常量类出现同名 const → 编译报错。先拦下。
+        var dupGroups = allUIItems
+            .Where(i => i.isActive)
+            .GroupBy(i => GetVariableName(i.prefabName))
+            .Where(g => g.Count() > 1)
+            .ToList();
+        if (dupGroups.Count > 0)
+        {
+            var sbDup = new StringBuilder("以下预制体重名，会导致生成的常量类编译报错，请先改名后再生成：\n");
+            foreach (var g in dupGroups)
+            {
+                sbDup.AppendLine($"\n【{g.Key}】×{g.Count()}");
+                foreach (var it in g) sbDup.AppendLine($"    {it.prefabPath}");
+            }
+            Debug.LogError($"[UI管理器] 生成中止：存在重名\n{sbDup}");
+            EditorUtility.DisplayDialog("发现重名，已中止生成", sbDup.ToString(), "确定");
             return;
         }
 
