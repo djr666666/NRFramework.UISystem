@@ -287,7 +287,8 @@ Game.Instance.uiRoots[UIPathConstants.Pnl_Main_UIlayer].uI
     .CreatePanel<Pnl_Main_Temp>(UIPathConstants.Pnl_Main_UIPanel);
 ```
 
-> 📸 建议截图：① 预制体挂 UIPanelBehaviour；② 右键 SetAsUIOpElement；③ 点生成 Base；④ 生成出的 Base 代码；⑤ 写的 _Temp 逻辑类。
+> 📸 ![打开UI编辑器](Assets/Image/界面制作_1.png)
+> 📸 ![打开UI编辑器](Assets/Image/界面制作_2.png)
 
 ---
 
