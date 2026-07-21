@@ -222,8 +222,8 @@ root.SetPanelVisible<Pnl_Main_Temp>(false); // 只隐藏不销毁
     }
 ```
 > 📸 ![打开UI编辑器](Assets/Image/快速开始1.png)
-> 📸 ![打开UI编辑器](Assets/Image/快速开始2.png)
-> 📸 ![打开UI编辑器](Assets/Image/快速开始3.png)
+> 📸 ![打开UI编辑器](Assets/Image/快速方法2.png)
+> 📸 ![打开UI编辑器](Assets/Image/快速方法3.png)
 
 ---
 
