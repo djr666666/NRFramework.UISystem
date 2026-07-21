@@ -40,6 +40,13 @@
 - **Luban**（可选，配表导出）
 - **HybridCLR**（可选，热更）
 
+  
+## 🧩 环境配置
+- EditorSetting
+- **Generated Base UI Root Dir**（代码导出base路径配置）
+- **Generated Temp UI Root Dir**（代码导出Temp路径配置）
+- **UI Prefab Root Dir**（存放UI预制体路径）
+> 📸 ![打开UI编辑器](Assets/Image/打开UI编辑器.png)
 ---
 ## 🛠️ UI 管理器编辑器 · 详细用法
 
