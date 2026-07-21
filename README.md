@@ -1,4 +1,12 @@
+### 源作者链接
+- [UINRFramwork文档](https://blog.csdn.net/NRatel/article/details/127902181)
+- [gitHub原工程链接](https://github.com/NRatel/NRFramework.UI)
+
 # NRFramework.UISystem
+
+一套基于 [NRFramework.UI](https://github.com/NRatel/NRFramework.UI) **扩展** 的 Unity UI 框架，
+提供 **12 层级管理 + 面板/组件生命周期 + 代码自动生成 + UI 编辑器体检工具**。
+资源走 YooAsset，配置支持本地编辑器 + Luban 双通道。
 - 基于NRFramework.UI 框架
 - 支持本地操作和Luban导表双重配置（以本地UI编辑器为主），支持两种模式结合使用。
 - 支持一键生成UI框架层级配置
@@ -13,16 +21,6 @@
 - 新增大型项目层级设计
 - 新增代码定位
 - 新增判断UI是否展开功能
-### 链接
-- [UINRFramwork文档](https://blog.csdn.net/NRatel/article/details/127902181)
-- [gitHub原工程链接](https://github.com/NRatel/NRFramework.UI)
-
-# NRFramework.UISystem
-
-一套基于 [NRFramework.UI](https://github.com/NRatel/NRFramework.UI) 扩展的 Unity UI 框架，
-提供 **12 层级管理 + 面板/组件生命周期 + 代码自动生成 + UI 编辑器体检工具**。
-资源走 YooAsset，配置支持本地编辑器 + Luban 双通道。
-
 ---
 
 ## ✨ 特性
