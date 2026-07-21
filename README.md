@@ -17,32 +17,248 @@
 - [UINRFramwork文档](https://blog.csdn.net/NRatel/article/details/127902181)
 - [gitHub原工程链接](https://github.com/NRatel/NRFramework.UI)
 
-### 配置导出路径预，Base  Temp  Prefabs制体路径
-- 修改： Root预制体GGame，初始化一键生成UI 框架层级模块。
-- 修改： 增加UI编辑器功能方便快捷开发。
-- 修改： 增加源码并未监听重要的相关功能。
-![配置](Assets/Image/2.png)
+# NRFramework.UISystem
 
-### NRFramework UI编辑器
-- 通过Unity项目 Tools--UI管理打开
-- 扫描 ：筛选出UI预制体 剔除 wight 组件 在UIPanel 上需要挂架NRFramework 的 UIPanelBehaviour
-- 加载配置： 加载已经配置好的数据 例 : UI 层级 路径 等
-- 设置：配置搜集预制体路径（支持多个路径）
-- 预制体上 可以通过 “层级” 修改加载后父物体UILayer层级 点击下面两个按钮保存UI配置
-- 导出代码等 参考NRFramework.UI 官方文档我会贴在上面
-![编辑器](Assets/Image/1.png)
+一套基于 [NRFramework.UI](https://github.com/NRatel/NRFramework.UI) 扩展的 Unity UI 框架，
+提供 **12 层级管理 + 面板/组件生命周期 + 代码自动生成 + UI 编辑器体检工具**。
+资源走 YooAsset，配置支持本地编辑器 + Luban 双通道。
 
-### 打开界面支持 luban 配置 和本地配置
+---
 
-![打开](Assets/Image/QQ_1770024149213.png)
-![打开](Assets/Image/QQ_1770024204544.png)
-- 一个完全由本地编辑器控制，一个完全由luban 配置表驱动
-- 从一个函数方法不难看出，配置表驱动，需要名字，路径 层级 等基础信息
-- 同时当我们做界面跳转功能，功能需求可以让策划配置，同时我们可以走本地编辑器，两种模式结合使用，策划不需要陪路径层级等基础信息，能够减轻开发繁琐流程。
-- 同时这套UI框架，可以适配 YooAssets  Luban  HybridCLR 等多种开发工具.
-### 代码源文件修改
-- 源代码中并未支持Update，后台挂机，返回游戏等相关函数
-- 修改后，支持这些功能，手动控制Update是否 使用。避免了update滥用 同时 也能够在极端特殊情况下必须使用Update的需求
-- 可以去我的博客看基于Unitask 下写的计时器结合使用
-- 其他更多修改可以根据自己的项目，手动添加，修改。
+## ✨ 特性
+- **12 层 UIRoot 层级体系**：世界层 → HUD → 全屏 → 弹窗 → 引导 → 加载 → 光标，sortingOrder 自动分配。
+- **面板(Panel)/组件(Widget) 统一生命周期**：Create → BindComps → Created → Enable → Destroy。
+- **一键生成绑定代码**：预制体标记节点 → 生成 Base 类(自动绑 `m_xxx` 字段和事件)。
+- **UI 编辑器工具**：扫描预制体、可视化配层级、生成路径常量，并做**批次/内存/RaycastTarget 体检**。
+- **焦点 & ESC 返回** 自动管理。
+
+---
+
+## 🧩 环境依赖
+- Unity（UGUI）
+- **YooAsset**（资源加载）
+- **Luban**（可选，配表导出）
+- **HybridCLR**（可选，热更）
+
+---
+
+## 🚀 快速开始
+
+### 1. 初始化框架（启动时调一次）
+```csharp
+using NRFramework.UI;
+
+// 游戏启动入口调用，之后所有 UIRoot 层级就绪
+Game.Instance.Init();
+```
+
+### 2. 打开一个面板
+```csharp
+// 取对应层级的 UIRoot（层级值用生成的 UIPath 常量，见下文）
+var root = Game.Instance.uiRoots[UIPathConstants.Pnl_Main_UIlayer].uI;
+
+// 创建面板：泛型=面板逻辑类，参数=预制体路径
+root.CreatePanel<Pnl_Main_Temp>(UIPathConstants.Pnl_Main_UIPanel);
+```
+
+### 3. 关闭面板
+```csharp
+root.ClosePanel<Pnl_Main_Temp>();      // 关闭(隐藏并清理)
+root.DestroyPanel<Pnl_Main_Temp>();    // 彻底销毁
+root.SetPanelVisible<Pnl_Main_Temp>(false); // 只隐藏不销毁
+```
+
+> 📸 建议截图：游戏启动脚本里调用 `Game.Instance.Init()`；以及打开某界面的调用处。
+
+---
+
+## 🗂️ 层级体系（12 层 UIRoot）
+
+| 层级 | 枚举值 | 用途 | sortingOrder 段 |
+|---|---|---|---|
+| WorldScene | 0 | 场景UI：地图标记、地面特效 | 0–49 |
+| WorldObject | 1 | 物体UI：血条、名字、NPC标识 | 50–99 |
+| WorldEffect | 2 | 特效UI：伤害数字、BUFF图标 | 100–149 |
+| DragLayer | 3 | 拖拽层 | 150–199 |
+| MainLayer | 4 | 主界面 HUD | 200–249 |
+| ScreenLayer | 5 | 全屏功能界面 | 250–349 |
+| ModalLayer | 6 | 模态对话框 | 350–449 |
+| PopLayer | 7 | 普通弹窗 | 450–549 |
+| GuideLayer | 8 | 新手引导 | 550–649 |
+| TopLayer | 9 | 飘字/公告 | 650–749 |
+| LoadingLayer | 10 | 加载界面 | 750–849 |
+| CursorLayer | 11 | 鼠标/手势 | 850–949 |
+
+> 同层内多个面板会自动按 sortingOrder 递增叠放，无需手填。
+
+---
+
+## 🖼️ 制作一个界面（完整流程）
+
+### 第 1 步：做预制体 + 挂行为脚本
+- 用 UGUI 拼好界面预制体。
+- 根节点挂 **`UIPanelBehaviour`**（Widget 用 `UIWidgetBehaviour`）。
+
+### 第 2 步：标记要绑定的节点
+- 选中要在代码里用的节点（按钮/文本/图片…）→ 右键 **`SetAsUIOpElement`** 标记为操作元素。
+- 取消标记用 `RemoveUIOpElement`。
+
+### 第 3 步：生成 Base 代码
+- 在 `UIPanelBehaviour` 的 Inspector 上点 **生成/导出 Base**，会生成 `Xxx_Base` 类，
+  自动把标记的节点绑成 `m_XXX` 字段、并在 `OnBindCompsAndEvents` 里连好事件。
+
+### 第 4 步：写面板逻辑类（继承 Base）
+```csharp
+public class Pnl_Main_Temp : Pnl_MainBase
+{
+    protected override void OnCreated()
+    {
+        // 初始化：m_ 字段已绑好，直接用
+        m_Txt_Title_Text.text = "主界面";
+    }
+
+    protected override void OnClicked(Button button)
+    {
+        if (button == m_Btn_Start_Button) { /* 点了开始 */ }
+    }
+
+    protected override void OnDestroying() { /* 清理 */ }
+}
+```
+
+### 第 5 步：打开它
+```csharp
+Game.Instance.uiRoots[UIPathConstants.Pnl_Main_UIlayer].uI
+    .CreatePanel<Pnl_Main_Temp>(UIPathConstants.Pnl_Main_UIPanel);
+```
+
+> 📸 建议截图：① 预制体挂 UIPanelBehaviour；② 右键 SetAsUIOpElement；③ 点生成 Base；④ 生成出的 Base 代码；⑤ 写的 _Temp 逻辑类。
+
+---
+
+## 🧱 Widget 用法（CreateWidget vs CloneWidget）
+
+Widget 是"界面里的可复用子模块"（如一个道具格子、一条列表项）。**两个方法用途不同：**
+
+### CreateWidget —— 用**现成节点** / 加载预制体
+```csharp
+// A. 直接把预制体里已有的一个节点包成 Widget（不复制）
+CreateWidget<Wdg_Header_Temp>(m_Header_UIWidgetBehaviour);
+
+// B. 按路径加载一个 Widget 预制体挂到某父节点下
+CreateWidget<Wdg_Popup_Temp>("popup", parentTransform, "Assets/.../Wdg_Popup.prefab");
+```
+
+### CloneWidget —— 从**模板克隆一份**（列表项最常用）
+```csharp
+// 拿模板 behaviour，克隆 N 份填列表
+for (int i = 0; i < dataList.Count; i++)
+{
+    var item = CloneWidget<Preb_Item_Temp>("Item_" + i, contentTrans, m_Preb_Item_UIWidgetBehaviour);
+    item.Setup(dataList[i]);
+}
+```
+
+**区别一句话：**
+- `CreateWidget(behaviour)` = **包裹现有节点**，不复制（界面里本来就有的模块）。
+- `CloneWidget(templateBehaviour)` = **Instantiate 复制一份**（同一个模板做多个，如列表）。
+
+### 销毁 Widget
+```csharp
+DestroyWidget("Item_3");     // 按 id
+DestroyWidget<Wdg_Header_Temp>();
+DestroyAllWidgets();          // 全清（面板销毁时自动调）
+```
+
+> 📸 建议截图：模板节点（隐藏的 Preb_Item）+ 克隆填充后的列表效果。
+
+---
+
+## 📇 UI 编辑器工具（Tools ▸ UI管理器）
+
+一个可视化面板，管理所有 UI 预制体的层级 + 体检优化。
+
+### 功能
+- **扫描**：扫指定路径下所有带 `UIPanelBehaviour` 的预制体，自动识别层级。
+- **层级配置**：每个界面用下拉改层级；**待确认区**(橙色)常驻显示自动识别、未确认的新界面，点 ✓ 或改层级即确认。
+- **静态体检（不用打包）**：每行显示
+  - `~估N` 预估批次 / `实N` 运行时实测批次（Play 模式点【测】）
+  - `X.XM` 纹理**运行内存**（非打包体积）
+  - `射线N` RaycastTarget 开启数（纯装饰的可关，省输入开销）
+- **生成路径常量**：一键生成 `UIPathConstants` 类（见下）。
+
+### 用法
+1. 菜单 **Tools ▸ UI管理器** 打开。
+2. 点 **扫描** → 列表按层级分组。
+3. 核对/调整层级（待确认区的点 ✓ 确认）→ **保存配置**。
+4. 点 **生成路径常量** → 生成 `Assets/Resources/UIPath.cs`。
+
+> 📸 建议截图：整个 UI管理器面板（层级分组 + 批次/内存/射线列）、待确认区、点生成常量的成功弹窗。
+
+---
+
+## 🔑 生成的路径常量（UIPathConstants）
+
+编辑器"生成路径常量"后，每个界面得到两个常量，直接喂给 `CreatePanel`：
+
+```csharp
+// 生成物示例
+public const string Pnl_Main_UIPanel = "Assets/Project/Prefabs/Gui/Main/Pnl_Main.prefab";
+public const int    Pnl_Main_UIlayer = 4;   // MainLayer
+
+// 用法：路径 + 层级 一起用，零手写字符串
+Game.Instance.uiRoots[UIPathConstants.Pnl_Main_UIlayer].uI
+    .CreatePanel<Pnl_Main_Temp>(UIPathConstants.Pnl_Main_UIPanel);
+```
+还生成 `UIPathDictionary` / `UILayerDictionary` 供按名查。
+
+---
+
+## 🔗 事件绑定
+Base 类已自动 `BindEvent`，逻辑类里重写对应回调即可：
+```csharp
+protected override void OnClicked(Button button) { }
+protected override void OnValueChanged(Toggle t, bool v) { }
+protected override void OnValueChanged(Slider s, float v) { }
+```
+也可订阅全局事件：`UIView.onButtonClickedGlobalEvent += ...`。
+
+---
+
+## ♻️ 生命周期（Panel/Widget 通用）
+```
+Create → OnBindCompsAndEvents(自动绑) → OnCreating → OnCreated → OnStart → OnEnable
+关闭：OnDestroying → OnUnbindCompsAndEvents → OnDestroyed（子 Widget 自动递归销毁）
+```
+- 初始化写 `OnCreated`；清理写 `OnDestroying`。
+- 需要每帧：`OnAddUpdate(cb)` / `OnRemoveUpdate(cb)`。
+
+---
+
+## 📚 常用 API 速查
+
+**UIRoot（管面板）**
+| API | 说明 |
+|---|---|
+| `CreatePanel<T>(path[, order])` | 打开面板 |
+| `ClosePanel<T>()` / `ClosePanel(id)` | 关闭 |
+| `DestroyPanel<T>()` | 销毁 |
+| `SetPanelVisible<T>(bool)` | 显隐 |
+| `GetPanel<T>()` | 取面板实例 |
+| `IsPanelOpened<T>()` | 是否已开 |
+
+**UIView（Panel/Widget 基类，管组件）**
+| API | 说明 |
+|---|---|
+| `CreateWidget<T>(...)` | 包裹现有/加载 Widget |
+| `CloneWidget<T>(...)` | 从模板克隆 Widget |
+| `DestroyWidget(id)` / `DestroyAllWidgets()` | 销毁 |
+| `GetWidget<T>()` / `ExistWidget(id)` | 取/判断 |
+
+---
+
+## ❓ FAQ
+- **编译报 `Graphic/Image/Canvas` 找不到？** 给 `NRFramework.Editor.asmdef` 加 `UnityEngine.UI` 引用。
+- **内存那列能相加吗？** 不能——共享图集会重复计；它是**运行内存**参考，非打包体积。
+- **图集降的是啥？** 主要降**批次(DrawCall)**，不降运行内存；降内存靠压缩格式/分辨率/关 Mipmap。
 
