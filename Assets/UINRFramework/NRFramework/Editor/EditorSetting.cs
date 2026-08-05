@@ -20,8 +20,11 @@ namespace NRFramework
 
         //Project/Prefabs/Gui  自己改的文件夹路径   确保这个地址能找到 预制体
         public string uiPrefabRootDir = "Project/Prefabs/Gui";
-        // UINRFramework 自己改的文件夹路径  确保这个地址能找到 EditorSetting
-        private const string kAssetPath = "Assets/UINRFramework/NRFramework/Editor/EditorSetting.asset";
+        // 配置 asset 存到【使用方项目】的 Assets 下——不能指向包目录：
+        //   UPM 引入后本框架在 Packages/ 下（只读），且使用方 Assets 里没有 UINRFramework 目录，
+        //   原来硬编码 "Assets/UINRFramework/NRFramework/Editor/..." 会因目录不存在导致 CreateAsset 失败。
+        //   改到中性的 Assets/NRFramework/，并在创建前自动建目录。
+        private const string kAssetPath = "Assets/NRFramework/EditorSetting.asset";
 
 
         private static EditorSetting sm_Instance = null;
@@ -36,7 +39,15 @@ namespace NRFramework
                     if (sm_Instance == null)
                     {
                         sm_Instance = CreateInstance<EditorSetting>();
+                        // 目标目录在使用方项目里可能不存在，先建再创建 asset（否则 CreateAsset 失败）
+                        string dir = System.IO.Path.GetDirectoryName(kAssetPath);
+                        if (!System.IO.Directory.Exists(dir))
+                        {
+                            System.IO.Directory.CreateDirectory(dir);
+                            AssetDatabase.Refresh();
+                        }
                         AssetDatabase.CreateAsset(sm_Instance, kAssetPath);
+                        AssetDatabase.SaveAssets();
                     }
 #else
                     Debug.Assert(sm_Instance != null);
