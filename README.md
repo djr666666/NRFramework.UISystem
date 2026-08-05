@@ -39,6 +39,25 @@
 - **HybridCLR**（可选，热更）
 
   
+## 📦 安装 / 引入
+
+**作为 UPM 包引入到你的项目**（推荐：只读、可升级、不污染你的 Assets）：
+
+Unity 菜单 `Window ▸ Package Manager` → 左上 `+` → `Add package from git URL...` → 粘贴：
+```
+https://github.com/djr666666/NRFramework.UISystem.git?path=/Assets/UINRFramework/NRFramework
+```
+或直接在你项目的 `Packages/manifest.json` 的 `dependencies` 里加一行：
+```json
+"com.nrframework.uisystem": "https://github.com/djr666666/NRFramework.UISystem.git?path=/Assets/UINRFramework/NRFramework"
+```
+指定版本用 tag：`…NRFramework.UISystem.git?path=/Assets/UINRFramework/NRFramework#v1.0.0`
+
+> **前提**：① 本机装了 **Git**（UPM 拉 git 包依赖系统 git，没装会报 `Cannot find git`）；② 先装依赖 **YooAsset**（见上「环境依赖」）。
+>
+> **想改框架源码？** UPM 引入的包是**只读**的。要改请 `git clone` 本仓库、在 clone 出来的工程里改、`push`（**别用 Download ZIP，它不带 `.git`、改了推不回去**）。层级等业务定制在你自己项目里调 `CreateRoot`/`Game.Init` 即可，**无需改包**。
+
+  
 ## 🧩 环境配置
 - EditorSetting
 - **Generated Base UI Root Dir**（代码导出base路径配置）
