@@ -840,8 +840,14 @@ public class UIEditorManagerWindow : EditorWindow
         }
 
         // 2. 创建字典存储现有配置（按GUID和路径）
-        Dictionary<string, UIItem> existingItemsByGuid = existingItems.ToDictionary(item => item.guid);
-        Dictionary<string, UIItem> existingItemsByPath = existingItems.ToDictionary(item => item.prefabPath);
+        // 防重复键：配置里若存在重复 guid/path，ToDictionary 会直接抛异常导致扫描崩溃，这里保留先出现的
+        Dictionary<string, UIItem> existingItemsByGuid = new Dictionary<string, UIItem>();
+        Dictionary<string, UIItem> existingItemsByPath = new Dictionary<string, UIItem>();
+        foreach (var _it in existingItems)
+        {
+            if (!string.IsNullOrEmpty(_it.guid) && !existingItemsByGuid.ContainsKey(_it.guid)) existingItemsByGuid[_it.guid] = _it;
+            if (!string.IsNullOrEmpty(_it.prefabPath) && !existingItemsByPath.ContainsKey(_it.prefabPath)) existingItemsByPath[_it.prefabPath] = _it;
+        }
 
         // 3. 处理每个预制体（带进度条）
         int _scanTotal = allPrefabPaths.Count;
@@ -875,6 +881,13 @@ public class UIEditorManagerWindow : EditorWindow
             {
                 // 使用现有配置（保留层级、激活状态等设置）
                 AnalyzeUIStat(existingItem, prefab);   // 刷新静态体检
+                // 改名/移动后 GUID 不变、但 path/name 变了：同步过来，避免残留旧名旧路径（层级/激活/排序/确认等用户设置保留）
+                existingItem.guid = guid;
+                existingItem.prefabPath = path;
+                existingItem.prefabName = Path.GetFileNameWithoutExtension(path);
+                ComputeFolderPaths(path, out string _fp, out string _ffp);
+                existingItem.folderPath = _fp;
+                existingItem.fullFolderPath = _ffp;
                 scannedItems.Add(existingItem);
                 AddItemToLayer(existingItem);
                 continue;
@@ -943,6 +956,22 @@ public class UIEditorManagerWindow : EditorWindow
             $"其中新发现 {newCount} 个\n\n" +
             $"配置已自动保存到 Resources/UIConfig.json",
             "确定");
+    }
+
+    // 从预制体路径算出“GUI 下的相对文件夹”（与新建分支逻辑一致），扫描命中已有记录时同步用
+    private void ComputeFolderPaths(string path, out string folderPath, out string fullFolderPath)
+    {
+        fullFolderPath = Path.GetDirectoryName(path).Replace("Assets/Project/Prefabs/GUI", "");
+        folderPath = fullFolderPath;
+        string[] parts = fullFolderPath.Split('/');
+        for (int i = 0; i < parts.Length; i++)
+        {
+            if (parts[i].Equals("GUI", System.StringComparison.OrdinalIgnoreCase))
+            {
+                folderPath = string.Join("/", parts.Skip(i));
+                break;
+            }
+        }
     }
 
     void AddItemToLayer(UIItem item)

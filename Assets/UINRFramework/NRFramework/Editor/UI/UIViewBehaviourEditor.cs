@@ -419,6 +419,42 @@ namespace NRFramework
             return finalPrefabPath;
         }
 
+        // 预制体名含空格会让生成的类名编译报错。弹窗确认后把空格换成下划线（预制体一起 RenameAsset），返回新路径；取消/冲突/失败返回 null
+        private string EnsurePrefabNameNoSpace(string prefabPath)
+        {
+            string fileName = Path.GetFileNameWithoutExtension(prefabPath);
+            if (!fileName.Contains(" ")) return prefabPath;   // 没空格，原样返回
+
+            string newName = fileName.Replace(" ", "_");
+            string dir = Path.GetDirectoryName(prefabPath).Replace("\\", "/");
+            string newPath = dir + "/" + newName + ".prefab";
+
+            // 目标名已存在 → 冲突，交给用户手动处理，不覆盖
+            if (!string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(newPath)))
+            {
+                EditorUtility.DisplayDialog("改名冲突",
+                    "预制体名带空格，需要改成 “" + newName + "”，但同目录已存在同名预制体。\n请先手动处理后再导出。", "知道了");
+                return null;
+            }
+
+            bool ok = EditorUtility.DisplayDialog("预制体名带空格",
+                "预制体 “" + fileName + "” 含空格，导出的脚本类名会编译报错。\n\n" +
+                "将自动把空格换成下划线，改名为 “" + newName + "”\n（预制体和生成的脚本都用新名）。",
+                "改名并继续", "取消");
+            if (!ok) return null;
+
+            string err = AssetDatabase.RenameAsset(prefabPath, newName);
+            if (!string.IsNullOrEmpty(err))
+            {
+                EditorUtility.DisplayDialog("改名失败", "重命名预制体失败：" + err, "知道了");
+                return null;
+            }
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("[UI导出] 预制体含空格，已自动改名：" + fileName + " → " + newName);
+            return newPath;
+        }
+
         private void GenerateUIBaseCode()
         {
             // 校验 EditorSetting 里的 Base 输出路径：为空则弹窗提示，不默默生成到怪位置
@@ -435,6 +471,10 @@ namespace NRFramework
                 Debug.LogError("非预设不可导出");
                 return;
             }
+
+            // 预制体名带空格 → 生成的类名会编译报错：弹窗确认后自动把空格换成 _（预制体一起改名），用新名继续
+            prefabPath = EnsurePrefabNameNoSpace(prefabPath);
+            if (string.IsNullOrEmpty(prefabPath)) return;
 
             string fullPrefabPath = Path.GetFullPath(Path.Combine(Application.dataPath, Path.GetRelativePath("Assets", prefabPath)));
             string fullRootDir = Path.GetFullPath(Path.Combine(Application.dataPath, EditorSetting.Instance.uiPrefabRootDir));
@@ -491,6 +531,10 @@ namespace NRFramework
                 Debug.LogError("非预设不可导出");
                 return;
             }
+
+            // 预制体名带空格 → 生成的类名会编译报错：弹窗确认后自动把空格换成 _（预制体一起改名），用新名继续
+            prefabPath = EnsurePrefabNameNoSpace(prefabPath);
+            if (string.IsNullOrEmpty(prefabPath)) return;
 
             string fullPrefabPath = Path.GetFullPath(Path.Combine(Application.dataPath, Path.GetRelativePath("Assets", prefabPath)));
             string fullRootDir = Path.GetFullPath(Path.Combine(Application.dataPath, EditorSetting.Instance.uiPrefabRootDir));
