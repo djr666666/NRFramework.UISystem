@@ -221,6 +221,28 @@ Game.Instance.uiRoots[UIPathConstants.Pnl_Main_UIlayer].uI
 
 ---
 
+## 🔌 换资源加载器（接 YooAsset / Addressables）
+
+框架加载 panel/widget 预制体走 **`IUIResLoader` 接口（唯一入口）**。默认 `DefaultUIResLoader` 在编辑器用 `AssetDatabase`（开箱即用，方便开发期直接跑），**打包运行时必须换成你的加载器**，否则加载不到 UI。
+
+实现接口 + 启动前注入一行即可，**不用改框架源码**：
+```csharp
+public class YooUIResLoader : IUIResLoader
+{
+    public GameObject LoadPrefab(string path)
+        => YooAssets.LoadAssetSync<GameObject>(path).AssetObject as GameObject;
+    public void ReleasePrefab(string path) { /* 你的 handle 释放逻辑 */ }
+}
+
+// 启动入口，Init 之前注入：
+UIRes.Loader = new YooUIResLoader();
+Game.Instance.Init();
+```
+> `path` 就是你 `UIPathConstants` 里的路径/地址 —— 怎么解释由你的 loader 定（YooAsset 地址 / Resources 相对路径都行）。
+> GGame 启动预制体是单独用 `Resources.Load("GGame")` 加载的（见「GGame 约定」），不走这个 loader。
+
+---
+
 ## 🚀 快速开始
 
 ### 1. 初始化框架（启动时调一次）

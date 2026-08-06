@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -31,19 +30,15 @@ namespace NRFramework
         #region 创建关闭接口
         protected void Create(string viewId, Transform parentTransform, string prefabPath)
         {
-            //YooAsset.AssetHandle prefab;
-            GameObject go = null;
-#if UNITY_EDITOR
-            //prefab = YooAssets.LoadAssetSync<GameObject>(prefabPath);
-            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            // 走可替换的资源加载器（默认编辑器 AssetDatabase；换 YooAsset 等只需设 UIRes.Loader = 你的实现，不用改这里）
+            GameObject prefab = UIRes.Loader.LoadPrefab(prefabPath);
+            if (prefab == null)
+            {
+                Debug.LogError("[NRFramework] 加载 UI 预制体失败，path=" + prefabPath + "（检查路径，或运行时是否已注入 UIRes.Loader）");
+                return;
+            }
 
-#else
-            prefab = null;  //todo，改用自封装的资源加载接口 prefab = YooAssets.LoadAssetSync<GameObject>(prefabPath); 
-#endif
-
-
-            //GameObject go = prefab.InstantiateSync();
-            go = GameObject.Instantiate(prefab);
+            GameObject go = GameObject.Instantiate(prefab);
 
             UIViewBehaviour viewBehaviour = go.GetComponent<UIViewBehaviour>();
 
