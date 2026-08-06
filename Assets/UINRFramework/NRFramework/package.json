@@ -1,6 +1,6 @@
 {
   "name": "com.nrframework.uisystem",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "displayName": "NRFramework UISystem",
   "description": "NR 的 UI 框架：Panel/View/Widget 分层 Root + 编辑器工具 + Lua 适配。层级由使用方 UIManager.CreateRoot 在业务层自定义。",
   "unity": "2021.3",

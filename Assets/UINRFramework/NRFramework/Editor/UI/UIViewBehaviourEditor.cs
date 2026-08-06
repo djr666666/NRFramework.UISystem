@@ -1,8 +1,10 @@
 ﻿// https://github.com/NRatel/NRFramework.UI
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
@@ -26,6 +28,12 @@ namespace NRFramework
 
        protected void DrawExpoertButton()
    {
+       // 导出记录（纯文本凭据）：改名后与预制体名对不上，开发者据此点下方 UpdateName 刷新脚本名
+       var _vb = (UIViewBehaviour)target;
+       EditorGUILayout.LabelField("Base 记录", string.IsNullOrEmpty(_vb.exportedBaseName) ? "未导出" : _vb.exportedBaseName);
+       EditorGUILayout.LabelField("Temp 记录", string.IsNullOrEmpty(_vb.exportedTempName) ? "未导出" : _vb.exportedTempName);
+       EditorGUILayout.Space(4);
+
        GUILayout.BeginHorizontal();
        {
            if (GUILayout.Button("ExportBase"))
@@ -83,6 +91,21 @@ namespace NRFramework
            {
                if (Application.isPlaying) { Debug.LogError("请在非运行时定位"); return; }
                LocateUITempCode();
+           }
+       }
+       GUILayout.EndHorizontal();
+
+       GUILayout.BeginHorizontal();
+       {
+           if (GUILayout.Button("UpdateBaseName"))
+           {
+               if (Application.isPlaying) { Debug.LogError("请在非运行时操作"); return; }
+               UpdateUIBaseName();
+           }
+           if (GUILayout.Button("UpdateTempName"))
+           {
+               if (Application.isPlaying) { Debug.LogError("请在非运行时操作"); return; }
+               UpdateUITempName();
            }
        }
        GUILayout.EndHorizontal();
@@ -512,6 +535,8 @@ namespace NRFramework
 
             UIEditorUtility.GenerateCode(savePath, content);
 
+            RecordExportedName("m_ExportedBaseName", className + "Base");   // 记录 Base 类名，供改名后定位
+
             Debug.Log("Export success!");
         }
 
@@ -564,7 +589,95 @@ namespace NRFramework
 
             UIEditorUtility.GenerateCode(savePath, content);
 
+            RecordExportedName("m_ExportedTempName", className + "_Temp");   // 记录 Temp 类名，供改名后定位
+
             Debug.Log("Export success!");
+        }
+
+        // 把导出记录写进 prefab 上的组件（序列化字段），改名后仍能读到
+        private void RecordExportedName(string propName, string value)
+        {
+            var sp = serializedObject.FindProperty(propName);
+            if (sp == null) return;
+            sp.stringValue = value;
+            serializedObject.ApplyModifiedProperties();
+            EditorUtility.SetDirty(target);
+            AssetDatabase.SaveAssets();
+        }
+
+        // 改名后：把记录里的旧 Base 脚本改名（文件名+类名）成当前预制体对应的新名，业务代码保留
+        private void UpdateUIBaseName()
+        {
+            string oldClassName = ((UIViewBehaviour)target).exportedBaseName;
+            if (string.IsNullOrEmpty(oldClassName)) { EditorUtility.DisplayDialog("无法刷新", "没有 Base 导出记录，请先 ExportBase。", "知道了"); return; }
+
+            string prefabPath = GetPrefabPath();
+            if (string.IsNullOrEmpty(prefabPath)) { Debug.LogError("非预设不可操作"); return; }
+            string newClassName = Path.GetFileNameWithoutExtension(prefabPath) + "Base";
+            if (oldClassName == newClassName) { EditorUtility.DisplayDialog("无需刷新", "Base 脚本名（" + oldClassName + "）已与预制体一致。", "知道了"); return; }
+
+            RenameGeneratedScript(EditorSetting.Instance.generatedBaseUIRootDir, prefabPath, oldClassName, newClassName,
+                new (string from, string to)[] { (oldClassName, newClassName) },
+                () => RecordExportedName("m_ExportedBaseName", newClassName), "Base");
+        }
+
+        // 改名后：把记录里的旧 Temp 脚本改名成新名；同时把它继承的旧 Base 类名一并改掉，业务代码保留
+        private void UpdateUITempName()
+        {
+            UIViewBehaviour vb = (UIViewBehaviour)target;
+            string oldTempName = vb.exportedTempName;
+            if (string.IsNullOrEmpty(oldTempName)) { EditorUtility.DisplayDialog("无法刷新", "没有 Temp 导出记录，请先 ExportTemp。", "知道了"); return; }
+
+            string prefabPath = GetPrefabPath();
+            if (string.IsNullOrEmpty(prefabPath)) { Debug.LogError("非预设不可操作"); return; }
+            string baseName = Path.GetFileNameWithoutExtension(prefabPath);
+            string newTempName = baseName + "_Temp";
+            string newBaseName = baseName + "Base";
+            string oldBaseName = string.IsNullOrEmpty(vb.exportedBaseName) ? oldTempName.Replace("_Temp", "Base") : vb.exportedBaseName;
+            if (oldTempName == newTempName) { EditorUtility.DisplayDialog("无需刷新", "Temp 脚本名（" + oldTempName + "）已与预制体一致。", "知道了"); return; }
+
+            RenameGeneratedScript(EditorSetting.Instance.generatedTempUIRootDir, prefabPath, oldTempName, newTempName,
+                new (string from, string to)[] { (oldTempName, newTempName), (oldBaseName, newBaseName) },
+                () => RecordExportedName("m_ExportedTempName", newTempName), "Temp");
+        }
+
+        // 通用：把 rootDir 下旧类名脚本改名成新类名（文件名 + 内容里的类名整词替换），业务代码保留
+        private void RenameGeneratedScript(string rootDir, string prefabPath, string oldClassName, string newClassName, (string from, string to)[] replaces, Action onSuccess, string tag)
+        {
+            string fullPrefabPath = Path.GetFullPath(Path.Combine(Application.dataPath, Path.GetRelativePath("Assets", prefabPath)));
+            string fullRootDir = Path.GetFullPath(Path.Combine(Application.dataPath, EditorSetting.Instance.uiPrefabRootDir));
+            if (!fullPrefabPath.StartsWith(fullRootDir)) { Debug.LogError("预设不在可导出的根目录中：" + fullRootDir); return; }
+            string subDir = Path.GetDirectoryName(Path.GetRelativePath(fullRootDir, fullPrefabPath)) ?? "";
+
+            string oldFull = Path.GetFullPath(Path.Combine(Application.dataPath, rootDir, subDir, oldClassName + ".cs"));
+            string newFull = Path.GetFullPath(Path.Combine(Application.dataPath, rootDir, subDir, newClassName + ".cs"));
+            string oldAssetPath = "Assets" + oldFull.Substring(Application.dataPath.Length).Replace("\\", "/");
+            string newAssetPath = "Assets" + newFull.Substring(Application.dataPath.Length).Replace("\\", "/");
+
+            if (string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(oldAssetPath)))
+            { EditorUtility.DisplayDialog("刷新失败", "找不到旧的 " + tag + " 脚本（记录名与实际对不上，可能已手动改过）：\n" + oldAssetPath, "知道了"); return; }
+            if (!string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(newAssetPath)))
+            { EditorUtility.DisplayDialog("刷新失败", tag + " 目标名已存在，请先处理冲突：\n" + newAssetPath, "知道了"); return; }
+
+            if (!EditorUtility.DisplayDialog("刷新 " + tag + " 脚本名",
+                tag + " 脚本将改名并同步类名（手写业务代码保留）：\n\n" + oldClassName + "  →  " + newClassName, "确定", "取消"))
+                return;
+
+            string err = AssetDatabase.RenameAsset(oldAssetPath, newClassName);
+            if (!string.IsNullOrEmpty(err)) { EditorUtility.DisplayDialog("改名失败", "重命名脚本失败：" + err, "知道了"); return; }
+
+            // 关键：改名与改内容之间不要 Refresh —— 否则 .cs 改动可能触发编译/domain reload 打断执行，
+            // 造成“文件名已改、内容里类名没改成”，反而编译报错。集中到最后刷新一次。
+            string content = File.ReadAllText(newFull);
+            foreach (var r in replaces)
+                content = Regex.Replace(content, "\\b" + Regex.Escape(r.from) + "\\b", r.to);
+            File.WriteAllText(newFull, content, Encoding.UTF8);
+
+            onSuccess?.Invoke();   // 更新记录（在刷新前完成）
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();   // 最后统一刷新，触发编译（此时文件名与类名已一致）
+            Debug.Log("[UI导出] " + tag + " 脚本已刷新名字：" + oldClassName + " → " + newClassName);
         }
 
         private int GetExportBaseCodeStrs(out string variantsDefineStr, out string bindCompsStr, out string bindEventsStr, out string unbindEventsStr, out string unbindCompsStr)

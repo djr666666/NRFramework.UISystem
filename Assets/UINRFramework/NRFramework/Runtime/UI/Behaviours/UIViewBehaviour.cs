@@ -58,6 +58,11 @@ namespace NRFramework
 
         public List<UIOpElement> opElementList { get { return m_OpElementList; } }
 
+        [SerializeField] protected string m_ExportedBaseName;   // 导出 Base 时记录的类名，改名后据此定位旧脚本（见 UIViewBehaviourEditor.UpdateUIBaseName）
+        [SerializeField] protected string m_ExportedTempName;   // 导出 Temp 时记录的类名
+        public string exportedBaseName { get { return m_ExportedBaseName; } set { m_ExportedBaseName = value; } }
+        public string exportedTempName { get { return m_ExportedTempName; } set { m_ExportedTempName = value; } }
+
         public bool HasSavedGameObject(GameObject go)
         {
             for (int i = 0; i < opElementList.Count; i++)
