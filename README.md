@@ -199,6 +199,28 @@ Game.Instance.uiRoots[UIPathConstants.Pnl_Main_UIlayer].uI
 - **关窗口提示"有未保存改动"**：你改了层级/激活没点保存，选保存即可。
 - **编译报 `Graphic/Image/Canvas` 找不到**：给 `NRFramework.Editor.asmdef` 加 `UnityEngine.UI` 引用。
 - **内存别相加**：共享图集会各行重复计，是运行内存参考、非打包体积。
+## ⚠ 接入约定：GGame 启动预制体（Init 前必看）
+
+框架启动时 `UIManager` 会 `Resources.Load<GameObject>("GGame")` 加载一个**启动预制体 `GGame`**，里面含 UI 根画布、UI 相机等；`Game.Instance.Init()` 依赖它。
+
+**三个硬约束（这三个"名字"不能动，改了框架就找不到 UI 根、跑不起来）：**
+
+| 名字 | 框架怎么用 | 约束 |
+|---|---|---|
+| `GGame` | `Resources.Load<GameObject>("GGame")` | 预制体必须叫 `GGame`，且放在**某个 `Resources/` 目录**下 |
+| `UICanvas` | `GameObject.Find("UICanvas")` 全局按名字找 | GGame 里的画布 GameObject 必须叫 `UICanvas`、场景唯一 |
+| `UICamera` | `GameObject.Find("UICamera")` 全局按名字找 | GGame 里的相机 GameObject 必须叫 `UICamera`、场景唯一 |
+
+**除这三个名字外，GGame 随便改** —— 往里拖加载/进度条界面、改布局、加子物体、别人扩展结构，都不影响框架。
+
+**GGame 不随包**（归你项目维护），但框架给了**一键生成**。引入本包后你项目里得有一份 `Assets/Resources/GGame.prefab`，否则启动 `Resources.Load("GGame")` 找不到、UI 起不来。步骤：
+1. **一键生成**：菜单 `Tools ▸ NRFramework ▸ 创建 GGame`，自动把包内模板拷到你项目的 `Assets/Resources/GGame.prefab`。
+2. **改成你要的**：往生成出来的 GGame 里拖加载 / 进度条界面、改布局、加子物体 —— 它是你自己的资源，随便改。
+3. **守住三个名字**（见上表）：`GGame` / `UICanvas` / `UICamera` 不能改，其余随便。
+4. 将来接入 **YooAsset** 后，可改由 YooAsset 按地址加载。
+
+---
+
 ## 🚀 快速开始
 
 ### 1. 初始化框架（启动时调一次）
