@@ -103,7 +103,11 @@ namespace NRFramework
 
           if (!fullPrefabPath.StartsWith(fullRootDir))
           {
-              Debug.LogError("预设不在可定位的根目录中：" + fullRootDir);
+              EditorUtility.DisplayDialog("定位失败",
+                  "预设不在配置的可定位根目录下，你写的配置和实际路径不一致（注意大小写）。\n\n" +
+                  "配置根目录：" + fullRootDir + "\n" +
+                  "当前预设：" + fullPrefabPath + "\n\n" +
+                  "请到 EditorSetting 的 Ui Prefab Root Dir 改成一致后，再重试。", "知道了");
               return;
           }
 
@@ -142,7 +146,11 @@ namespace NRFramework
 
           if (!fullPrefabPath.StartsWith(fullRootDir))
           {
-              Debug.LogError("预设不在可定位的根目录中：" + fullRootDir);
+              EditorUtility.DisplayDialog("定位失败",
+                  "预设不在配置的可定位根目录下，你写的配置和实际路径不一致（注意大小写）。\n\n" +
+                  "配置根目录：" + fullRootDir + "\n" +
+                  "当前预设：" + fullPrefabPath + "\n\n" +
+                  "请到 EditorSetting 的 Ui Prefab Root Dir 改成一致后，再重试。", "知道了");
               return;
           }
 
@@ -413,6 +421,13 @@ namespace NRFramework
 
         private void GenerateUIBaseCode()
         {
+            // 校验 EditorSetting 里的 Base 输出路径：为空则弹窗提示，不默默生成到怪位置
+            if (EditorSetting.Instance == null || string.IsNullOrEmpty(EditorSetting.Instance.generatedBaseUIRootDir))
+            {
+                EditorUtility.DisplayDialog("导出失败", "没有有效的 Base 代码输出路径配置，生成失败。\n请在 EditorSetting 中检查并填写 Generated Base UI Root Dir。", "知道了");
+                return;
+            }
+
             string prefabPath = GetPrefabPath();
 
             if (string.IsNullOrEmpty(prefabPath))
@@ -429,7 +444,11 @@ namespace NRFramework
 
             if (!fullPrefabPath.StartsWith(fullRootDir))
             {
-                Debug.LogError("预设不在可导出的根目录中：" + fullRootDir);
+                EditorUtility.DisplayDialog("导出失败",
+                    "预设不在配置的可导出根目录下，你写的配置和实际路径不一致（注意大小写）。\n\n" +
+                    "配置根目录：" + fullRootDir + "\n" +
+                    "当前预设：" + fullPrefabPath + "\n\n" +
+                    "请到 EditorSetting 的 Ui Prefab Root Dir 改成一致后，再重新导出。", "知道了");
                 return;
             }
 
@@ -458,6 +477,13 @@ namespace NRFramework
 
         private void GenerateUITempCode()
         {
+            // 校验 EditorSetting 里的 Temp 输出路径：为空则弹窗提示，不默默生成到怪位置
+            if (EditorSetting.Instance == null || string.IsNullOrEmpty(EditorSetting.Instance.generatedTempUIRootDir))
+            {
+                EditorUtility.DisplayDialog("导出失败", "没有有效的 Temp 代码输出路径配置，生成失败。\n请在 EditorSetting 中检查并填写 Generated Temp UI Root Dir。", "知道了");
+                return;
+            }
+
             string prefabPath = GetPrefabPath();
 
             if (string.IsNullOrEmpty(prefabPath))
@@ -474,7 +500,11 @@ namespace NRFramework
 
             if (!fullPrefabPath.StartsWith(fullRootDir))
             {
-                Debug.LogError("预设不在可导出的根目录中：" + fullRootDir);
+                EditorUtility.DisplayDialog("导出失败",
+                    "预设不在配置的可导出根目录下，你写的配置和实际路径不一致（注意大小写）。\n\n" +
+                    "配置根目录：" + fullRootDir + "\n" +
+                    "当前预设：" + fullPrefabPath + "\n\n" +
+                    "请到 EditorSetting 的 Ui Prefab Root Dir 改成一致后，再重新导出。", "知道了");
                 return;
             }
 
