@@ -209,9 +209,14 @@ namespace NRFramework
 
         private void Update()
         {
+            // ESC 返回：旧 Input API 仅在启用「旧输入(Input Manager)」时可用。
+            // 纯 Input System 模式（Player ▸ Active Input Handling = Input System Package）下，
+            // 这段不编译，避免 UnityEngine.Input 抛 InvalidOperationException。
+            // 需要 ESC 请把 Active Input Handling 设为 Both；或接入 Input System 版检测（见类外说明）。
+#if ENABLE_LEGACY_INPUT_MANAGER
             if (Input.GetKeyDown(KeyCode.Escape))
             {
-                UIPanel topestPanel = FilterTopestPanel((panel) => 
+                UIPanel topestPanel = FilterTopestPanel((panel) =>
                 { return panel.showState != UIPanelShowState.Hidden && panel.panelBehaviour.escPressEventType != UIPanelEscPressEventType.DontCheck; });
 
                 if (topestPanel == null) { return; }
@@ -219,6 +224,7 @@ namespace NRFramework
 
                 topestPanel.DoEscPress();
             }
+#endif
         }
     }
 }
