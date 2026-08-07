@@ -247,11 +247,26 @@ Game.Instance.Init();
 
 ### 1. 初始化框架（启动时调一次）
 ```csharp
-using NRFramework.UI;
+using NRFramework;       // UIRes / IUIResLoader
+using NRFramework.UI;    // Game
 
-// 游戏启动入口调用，之后所有 UIRoot 层级就绪
-Game.Instance.Init();
+void Start()   // 游戏启动入口，这几步的顺序很重要
+{
+    // ① 用 YooAsset / Addressables 时：先确保它自己初始化完、资源包就绪
+    //    （用 Resources / 编辑器 AssetDatabase 直接跳过这步）
+    // await InitYooAsset();
+
+    // ② 注入资源加载器（不写 = 默认编辑器 AssetDatabase，编辑器测试够用；
+    //    打包 or 换 YooAsset 必须设，写法见下方「换资源加载器」节）
+    // UIRes.Loader = new YourUIResLoader();
+
+    // ③ 初始化 UI 框架：出 GGame 地基（Resources.Load）+ 12 层 UIRoot 就绪
+    Game.Instance.Init();
+
+    // ④ 之后即可开面板（见「2. 打开一个面板」）
+}
 ```
+> **顺序要点**：`UIRes.Loader` 要在**第一次开面板之前**设好（放 `Init()` 前最省心）；用 YooAsset 还要**先确保 YooAsset 自身已初始化**。GGame 是启动地基，`Init` 里固定走 `Resources.Load`、不受 loader 影响。
 
 ### 2. 打开一个面板
 ```csharp
