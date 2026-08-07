@@ -247,8 +247,7 @@ Game.Instance.Init();
 
 ### 1. 初始化框架（启动时调一次）
 ```csharp
-using NRFramework;       // UIRes / IUIResLoader
-using NRFramework.UI;    // Game
+using NRFramework;       // UIRes / IUIResLoader / Game（已统一到 NRFramework，一个 using 全搞定）
 
 void Start()   // 游戏启动入口，这几步的顺序很重要
 {

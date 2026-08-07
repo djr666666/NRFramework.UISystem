@@ -2,9 +2,9 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using static NRFramework.UI.Game;
+using static NRFramework.Game;
 
-namespace NRFramework.UI
+namespace NRFramework
 {
     public class Game : SingletonNRT<Game>
     {

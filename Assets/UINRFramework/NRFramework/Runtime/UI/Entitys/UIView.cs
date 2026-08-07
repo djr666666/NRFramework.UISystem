@@ -16,6 +16,7 @@ namespace NRFramework
     public abstract partial class UIView
     {
         protected string viewId;
+        protected string _loadedPrefabPath;   // 本 View 从哪个 path 加载的 prefab；销毁时据此 ReleasePrefab。behaviour 版创建（不加载）时保持 null，不释放
         public Transform parentTransform;
         protected UIViewBehaviour viewBehaviour;
         public RectTransform rectTransform;
@@ -39,6 +40,7 @@ namespace NRFramework
             }
 
             GameObject go = GameObject.Instantiate(prefab);
+            _loadedPrefabPath = prefabPath;   // 记住加载来源，销毁时释放（见 OnInternalDestroying）
 
             UIViewBehaviour viewBehaviour = go.GetComponent<UIViewBehaviour>();
 
@@ -366,6 +368,13 @@ namespace NRFramework
         protected internal virtual void OnInternalDestroying()
         {
             GameObject.Destroy(gameObject);
+
+            // 释放加载的 prefab（YooAsset/Addressables 靠这个防泄漏；Resources/AssetDatabase 版为空实现，无副作用）
+            if (!string.IsNullOrEmpty(_loadedPrefabPath))
+            {
+                UIRes.Loader.ReleasePrefab(_loadedPrefabPath);
+                _loadedPrefabPath = null;
+            }
 
             gameObject = null;
             rectTransform = null;
