@@ -16,10 +16,10 @@ namespace NRFramework
         private Action<LuaTable> m_LuaOnDestroying;
         private Action<LuaTable> m_LuaOnDestroyed;
 
-        public void Create(string panelId, Canvas parentCanvas, string prefabPath, LuaTable luaTable)
+        public void CreateAsync(string panelId, Canvas parentCanvas, string prefabPath, LuaTable luaTable, Action<bool> onCreated = null)
         {
             @this = luaTable;
-            base.Create(panelId, parentCanvas.transform, prefabPath);
+            base.CreateAsync(panelId, parentCanvas.transform, prefabPath, onCreated);
         }
 
         public void Create(string panelId, Canvas parentCanvas, UIPanelBehaviour panelBehaviour, LuaTable luaTable)

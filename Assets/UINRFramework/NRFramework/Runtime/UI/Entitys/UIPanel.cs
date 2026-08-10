@@ -30,12 +30,15 @@ namespace NRFramework
 
         public UIPanelAnimState animState { protected set; get; }
 
-        internal void Create(string panelId, UIRoot uiRoot, string prefabPath)
+        internal void CreateAsync(string panelId, UIRoot uiRoot, string prefabPath, Action<bool> onCreated)
         {
             this.parentUIRoot = uiRoot;
-            base.Create(panelId, UIManager.Instance.uiCanvas.transform, prefabPath);
-
-            PlayOpenAnim(null);
+            base.CreateAsync(panelId, UIManager.Instance.uiCanvas.transform, prefabPath, (ok) =>
+            {
+                if (!ok) { onCreated?.Invoke(false); return; }
+                PlayOpenAnim(null);
+                onCreated?.Invoke(true);
+            });
         }
 
         internal void Close(Action onFinish = null)

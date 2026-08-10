@@ -1,32 +1,33 @@
-﻿using NRFramework;
-using NRFramework.UI;
+﻿using System;
+using NRFramework;
 using UnityEngine;
 
 public class Main : MonoBehaviour
 {
     private void Awake()
     {
-        NRFramework.UI.Game.Instance.Init();
+        Game.Instance.Init();
     }
     void Start()
     {
        OpenUI_Local<Ui_TEST_1_Temp>();
     }
 
-    public static T OpenUI_Local<T>() where T : UIPanel
+    // 异步开面板：加载完成回调里拿到 panel。成功 success=true + panel；失败 success=false + null。
+    public static void OpenUI_Local<T>(Action<T> onOpened = null) where T : UIPanel
     {
-        T uiPanel = null;
         var csName = typeof(T).Name;
         string result = csName.Replace("_Temp", "");
         int panelType = (int)UIPathConstants.UILayerDictionary[result];
         var uiroot = Game.Instance.uiRoots[panelType];
         var path = UIPathConstants.UIPathDictionary[result];
-        uiPanel = uiroot.uI.CreatePanel<T>(csName, path);
-        uiPanel.gameObject.transform.SetParent(uiroot.obj.transform);
-
-
-        UnityEngine.Debug.Log($"csName  ={csName} result ={result}  uiroot ={uiroot} path ={path}");
-        return uiPanel;
+        uiroot.uI.CreatePanelAsync<T>(csName, path, (success, uiPanel) =>
+        {
+            if (!success) { onOpened?.Invoke(null); return; }
+            uiPanel.gameObject.transform.SetParent(uiroot.obj.transform);
+            UnityEngine.Debug.Log($"csName  ={csName} result ={result}  uiroot ={uiroot} path ={path}");
+            onOpened?.Invoke(uiPanel);
+        });
     }
 
 

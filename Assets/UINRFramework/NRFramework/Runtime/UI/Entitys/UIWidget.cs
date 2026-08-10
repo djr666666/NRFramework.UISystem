@@ -1,5 +1,6 @@
 ﻿// https://github.com/NRatel/NRFramework.UI
 
+using System;
 using UnityEngine;
 
 namespace NRFramework
@@ -10,10 +11,10 @@ namespace NRFramework
         protected string widgetId { get { return viewId; } }
         public UIWidgetBehaviour widgetBehaviour { get { return (UIWidgetBehaviour)viewBehaviour; } }
 
-        protected internal void Create(string widgetId, UIView parentView, Transform parentTransform, string prefabPath)
+        protected internal void CreateAsync(string widgetId, UIView parentView, Transform parentTransform, string prefabPath, Action<bool> onCreated)
         {
             this.parentView = parentView;
-            base.Create(widgetId, parentTransform, prefabPath);
+            base.CreateAsync(widgetId, parentTransform, prefabPath, onCreated);
         }
 
         protected internal void Create(string widgetId, UIView parentView, Transform parentTransform, UIWidgetBehaviour widgetBehaviour)

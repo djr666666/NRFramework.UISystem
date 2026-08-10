@@ -29,24 +29,30 @@ namespace NRFramework
         static public event Action<Dropdown, int> onDropdownValueChangedGlobalEvent;
 
         #region 创建关闭接口
-        protected void Create(string viewId, Transform parentTransform, string prefabPath)
+        // 从资源加载的创建走异步（只有"加载 UI 预制体"才真正走资源加载/异步）；成功与否经 onCreated(bool) 回传。
+        // 编辑器默认加载器是"同步加载+立即回调"，所以编辑器下这里表现等同同步、瞬间完成。
+        protected void CreateAsync(string viewId, Transform parentTransform, string prefabPath, Action<bool> onCreated)
         {
             // 走可替换的资源加载器（默认编辑器 AssetDatabase；换 YooAsset 等只需设 UIRes.Loader = 你的实现，不用改这里）
-            GameObject prefab = UIRes.Loader.LoadPrefab(prefabPath);
-            if (prefab == null)
+            UIRes.Loader.LoadPrefabAsync(prefabPath, (prefab) =>
             {
-                Debug.LogError("[NRFramework] 加载 UI 预制体失败，path=" + prefabPath + "（检查路径，或运行时是否已注入 UIRes.Loader）");
-                return;
-            }
+                if (prefab == null)
+                {
+                    Debug.LogError("[NRFramework] 加载 UI 预制体失败，path=" + prefabPath + "（检查路径，或运行时是否已注入 UIRes.Loader）");
+                    onCreated?.Invoke(false);
+                    return;
+                }
 
-            GameObject go = GameObject.Instantiate(prefab);
-            _loadedPrefabPath = prefabPath;   // 记住加载来源，销毁时释放（见 OnInternalDestroying）
+                GameObject go = GameObject.Instantiate(prefab);
+                _loadedPrefabPath = prefabPath;   // 记住加载来源，销毁时释放（见 OnInternalDestroying）
 
-            UIViewBehaviour viewBehaviour = go.GetComponent<UIViewBehaviour>();
+                UIViewBehaviour viewBehaviour = go.GetComponent<UIViewBehaviour>();
 
-            Debug.Assert(viewBehaviour != null, "UIViewBehaviour组件不存在");
+                Debug.Assert(viewBehaviour != null, "UIViewBehaviour组件不存在");
 
-            Create(viewId, parentTransform, viewBehaviour);
+                Create(viewId, parentTransform, viewBehaviour);   // 复用同步的 behaviour 版流水线（不加载）
+                onCreated?.Invoke(true);
+            });
         }
 
         protected void Create(string viewId, Transform parentTransform, UIViewBehaviour viewBehaviour)
@@ -79,17 +85,21 @@ namespace NRFramework
         #endregion
 
         #region Widget操作相关接口
-        public T CreateWidget<T>(string widgetId, Transform parentTransform, string prefabPath) where T : UIWidget
+        // Widget 从独立 prefab 加载的版本 —— 走资源加载，异步。成功经 onCreated(true, widget) 回传。
+        // 注意：绝大多数 widget 是"界面上已有的元素"，请用下面的 behaviour 版（同步、不加载）；这个只在动态加载独立 widget 预制体时用。
+        public void CreateWidgetAsync<T>(string widgetId, Transform parentTransform, string prefabPath, Action<bool, T> onCreated) where T : UIWidget
         {
             UIViewBehaviour parentViewBehaviour = parentTransform.GetComponentInParent<UIViewBehaviour>();
             Debug.Assert(viewBehaviour.Equals(parentViewBehaviour));    //必须以当前UIView的元素作为UIWidget的父节点
 
             T widget = Activator.CreateInstance(typeof(T)) as T;
-            widget.Create(widgetId, this, parentTransform, prefabPath);
-
-            if (widgetDict == null) { widgetDict = new Dictionary<string, UIWidget>(); }
-            widgetDict.Add(widgetId, widget);
-            return widget;
+            widget.CreateAsync(widgetId, this, parentTransform, prefabPath, (ok) =>
+            {
+                if (!ok) { onCreated?.Invoke(false, null); return; }
+                if (widgetDict == null) { widgetDict = new Dictionary<string, UIWidget>(); }
+                widgetDict.Add(widgetId, widget);
+                onCreated?.Invoke(true, widget);
+            });
         }
 
         public T CreateWidget<T>(string widgetId, Transform parentTransform, UIWidgetBehaviour widgetBehaviour) where T : UIWidget
@@ -102,17 +112,20 @@ namespace NRFramework
             return widget;
         }
 
-        public T CloneWidget<T>(string widgetId, Transform parentTransform, string prefabPath) where T : UIWidget
+        // Clone 加载版（从 prefab 路径）—— 走资源加载，异步。
+        public void CloneWidgetAsync<T>(string widgetId, Transform parentTransform, string prefabPath, Action<bool, T> onCreated) where T : UIWidget
         {
             UIViewBehaviour parentViewBehaviour = parentTransform.GetComponentInParent<UIViewBehaviour>();
             Debug.Assert(viewBehaviour.Equals(parentViewBehaviour));    //必须以当前UIView的元素作为UIWidget的父节点
 
             T widget = Activator.CreateInstance(typeof(T)) as T;
-            widget.Create(widgetId, this, parentTransform, prefabPath);
-
-            if (widgetDict == null) { widgetDict = new Dictionary<string, UIWidget>(); }
-            widgetDict.Add(widgetId, widget);
-            return widget;
+            widget.CreateAsync(widgetId, this, parentTransform, prefabPath, (ok) =>
+            {
+                if (!ok) { onCreated?.Invoke(false, null); return; }
+                if (widgetDict == null) { widgetDict = new Dictionary<string, UIWidget>(); }
+                widgetDict.Add(widgetId, widget);
+                onCreated?.Invoke(true, widget);
+            });
         }
 
         public T CloneWidget<T>(string widgetId, Transform parentTransform, UIWidgetBehaviour widgetBehaviour) where T : UIWidget
@@ -133,9 +146,9 @@ namespace NRFramework
             return widget;
         }
 
-        public T CreateWidget<T>(Transform parentTransform, string prefabPath) where T : UIWidget
+        public void CreateWidgetAsync<T>(Transform parentTransform, string prefabPath, Action<bool, T> onCreated) where T : UIWidget
         {
-            return CreateWidget<T>(typeof(T).Name, parentTransform, prefabPath);
+            CreateWidgetAsync<T>(typeof(T).Name, parentTransform, prefabPath, onCreated);
         }
 
         public T CreateWidget<T>(Transform parentTransform, UIWidgetBehaviour widgetBehaviour) where T : UIWidget
@@ -153,9 +166,9 @@ namespace NRFramework
             return CreateWidget<T>(typeof(T).Name, widgetBehaviour.transform.parent, widgetBehaviour);
         }
 
-        public T CloneWidget<T>(Transform parentTransform, string prefabPath) where T : UIWidget
+        public void CloneWidgetAsync<T>(Transform parentTransform, string prefabPath, Action<bool, T> onCreated) where T : UIWidget
         {
-            return CloneWidget<T>(typeof(T).Name, parentTransform, prefabPath);
+            CloneWidgetAsync<T>(typeof(T).Name, parentTransform, prefabPath, onCreated);
         }
 
 

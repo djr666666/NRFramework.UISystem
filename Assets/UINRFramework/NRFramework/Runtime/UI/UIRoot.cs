@@ -27,44 +27,46 @@ namespace NRFramework
             panelStateDict = new Dictionary<string, UIPanelState>();
         }
 
-        public T CreatePanel<T>(string panelId, string prefabPath, int sortingOrder) where T : UIPanel
+        public void CreatePanelAsync<T>(string panelId, string prefabPath, int sortingOrder, Action<bool, T> onCreated) where T : UIPanel
         {
             Debug.Assert(!panelDict.ContainsKey(panelId));
             Debug.Assert(sortingOrder >= startOrder && sortingOrder <= endOrder);
-            //先注册
+            //先占位注册（加载中也算已开，避免加载期间重复开同一个）
             panelStateDict[panelId] = UIPanelState.Show;
-            
+
             T panel = Activator.CreateInstance(typeof(T)) as T;
-            panel.Create(panelId, this, prefabPath);
-            panel.SetSortingOrder(sortingOrder);
-            int siblingIndex = GetCurrentSiblingIndex(sortingOrder);
-            panel.SetSiblingIndex(siblingIndex);
-            panelDict.Add(panel.panelId, panel);
-            
-            UIManager.Instance.SetBackgroundAndFocus();
+            panel.CreateAsync(panelId, this, prefabPath, (ok) =>
+            {
+                if (!ok)
+                {
+                    panelStateDict.Remove(panelId);   // 加载失败，回滚占位
+                    onCreated?.Invoke(false, null);
+                    return;
+                }
+                panel.SetSortingOrder(sortingOrder);
+                int siblingIndex = GetCurrentSiblingIndex(sortingOrder);
+                panel.SetSiblingIndex(siblingIndex);
+                panelDict.Add(panel.panelId, panel);
 
+                UIManager.Instance.SetBackgroundAndFocus();
 
-            //foreach (var key in panelDict.Keys)
-            //{
-            //    Debug.Log($"查看 panelDict 的 key = {key}  ");
-            //}
-
-            return panel;
+                onCreated?.Invoke(true, panel);
+            });
         }
 
-        public T CreatePanel<T>(string panelId, string prefabPath) where T : UIPanel
+        public void CreatePanelAsync<T>(string panelId, string prefabPath, Action<bool, T> onCreated) where T : UIPanel
         {
-            return CreatePanel<T>(panelId, prefabPath, GetIncrementedSortingOrder());
+            CreatePanelAsync<T>(panelId, prefabPath, GetIncrementedSortingOrder(), onCreated);
         }
 
-        public T CreatePanel<T>(string prefabPath, int sortingOrder) where T : UIPanel
+        public void CreatePanelAsync<T>(string prefabPath, int sortingOrder, Action<bool, T> onCreated) where T : UIPanel
         {
-            return CreatePanel<T>(typeof(T).Name, prefabPath, sortingOrder);
+            CreatePanelAsync<T>(typeof(T).Name, prefabPath, sortingOrder, onCreated);
         }
 
-        public T CreatePanel<T>(string prefabPath) where T : UIPanel
+        public void CreatePanelAsync<T>(string prefabPath, Action<bool, T> onCreated) where T : UIPanel
         {
-            return CreatePanel<T>(typeof(T).Name, prefabPath);
+            CreatePanelAsync<T>(typeof(T).Name, prefabPath, onCreated);
         }
 
         public void ClosePanel(string panelId, Action onFinish = null)

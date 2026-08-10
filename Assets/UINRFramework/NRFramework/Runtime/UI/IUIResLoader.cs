@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace NRFramework
@@ -9,8 +10,9 @@ namespace NRFramework
     /// </summary>
     public interface IUIResLoader
     {
-        /// <summary>按路径加载预制体（同步）。path 语义由实现决定：AssetDatabase=资产路径 / YooAsset=地址 / Resources=相对路径。</summary>
-        GameObject LoadPrefab(string path);
+        /// <summary>按路径异步加载预制体，加载完回调 onLoaded(prefab)（失败回调 null）。path 语义由实现决定：AssetDatabase=资产路径 / YooAsset=地址 / Resources=相对路径。
+        /// 编辑器默认实现是"同步加载 + 立即回调"（见 DefaultUIResLoader）；换 YooAsset 时在其异步完成回调里调 onLoaded 即可。</summary>
+        void LoadPrefabAsync(string path, Action<GameObject> onLoaded);
 
         /// <summary>释放（YooAsset 等需要按 handle 释放；Resources / AssetDatabase 版空实现即可）。</summary>
         void ReleasePrefab(string path);
@@ -31,14 +33,16 @@ namespace NRFramework
     /// </summary>
     public class DefaultUIResLoader : IUIResLoader
     {
-        public GameObject LoadPrefab(string path)
+        public void LoadPrefabAsync(string path, Action<GameObject> onLoaded)
         {
 #if UNITY_EDITOR
-            return UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            // 编辑器：AssetDatabase 同步加载 + 立即回调（体验等同同步，小项目/编辑器无损）
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            onLoaded?.Invoke(prefab);
 #else
             Debug.LogError("[NRFramework] 未注入 UI 资源加载器！打包运行时不能用 AssetDatabase 加载 UI。\n" +
                            "请实现 IUIResLoader（如 YooAsset 版）并在 Game.Init 前设置 UIRes.Loader = 你的实现。path=" + path);
-            return null;
+            onLoaded?.Invoke(null);
 #endif
         }
 
