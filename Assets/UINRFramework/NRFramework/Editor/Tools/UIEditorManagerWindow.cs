@@ -124,6 +124,9 @@ public class UIEditorManagerWindow : EditorWindow
 
     void OnEnable()
     {
+        // 打开窗口时读一次最新层级配置(之后走缓存；改了 SO 需点"刷新层级"才更新，不自动跟)
+        UILayers.Reload();
+
         // 初始化所有层级（确保空层级也能显示）
         InitializeAllLayers();
 
@@ -163,6 +166,47 @@ public class UIEditorManagerWindow : EditorWindow
             {
                 layerItems[layer] = new List<UIItem>();
             }
+        }
+    }
+
+    // ===== 手动刷新层级 =====
+    // 开发者改完 UILayerConfig(SO：增/减/改层)后点工具栏"🔄 刷新层级"调这里。
+    // 规则：重新读 SO → 新增层自动出现；原层级已被删的 UI(层级下标越界) → 移入待确认区让开发者重选，不丢不崩。
+    void RefreshLayers()
+    {
+        UILayers.Reload();                 // 重新读 SO(缓存更新，增/减/改层在此生效)
+        int count = UILayers.Count;
+
+        // 层级下标越界 = 它原来的层已被删 → 标记未确认，进待确认区(已经是未确认的不重复计)
+        int orphan = 0;
+        foreach (var item in allUIItems)
+        {
+            if ((item.uiLayer < 0 || item.uiLayer >= count) && item.layerConfirmed)
+            {
+                item.layerConfirmed = false;
+                orphan++;
+            }
+        }
+
+        // 按最新层级重建分组
+        layerItems.Clear();
+        layerFoldoutStates.Clear();
+        InitializeAllLayers();
+        foreach (var item in allUIItems) AddItemToLayer(item);
+        FilterUIItems();
+
+        if (orphan > 0) MarkDirty();
+        Repaint();
+
+        if (orphan > 0)
+        {
+            ShowNotification(new GUIContent($"⚠ {orphan} 个 UI 的原层级已删除，已移入待确认区"));
+            Debug.LogWarning($"[UI管理器] 刷新层级：有 {orphan} 个 UI 的层级已不存在，已移入待确认区，请重新指定层级后【保存】。");
+        }
+        else
+        {
+            ShowNotification(new GUIContent("✓ 已按最新层级刷新"));
+            Debug.Log($"[UI管理器] 刷新层级完成：当前 {count} 层，无失效项。");
         }
     }
 
@@ -220,10 +264,16 @@ public class UIEditorManagerWindow : EditorWindow
             ScanUIComponents();
         }
 
-        // 加载配置按钮"📂 加载配置" 
+        // 加载配置按钮"📂 加载配置"
         if (GUILayout.Button(UnityIconsEx.FolderContent("加载配置"), EditorStyles.toolbarButton, GUILayout.Width(100), GUILayout.Height(50)))
         {
             LoadConfig(true);   // 手动点 → 浮层反馈
+        }
+
+        // 刷新层级按钮"🔄 刷新层级"：改了 UILayerConfig(SO) 后点这个，面板/分组按最新层级重排(手动，不自动跟)
+        if (GUILayout.Button(new GUIContent("🔄 刷新层级", "重新读取 UILayerConfig(SO) 的层级配置：\n· 新增的层直接出现\n· 原层级被删的 UI 移入待确认区，请重选层级后【保存】\n（改了 SO 记得点这个，面板不会自动跟）"), EditorStyles.toolbarButton, GUILayout.Width(100), GUILayout.Height(50)))
+        {
+            RefreshLayers();
         }
 
         // 设置按钮"⚙️ 设置"（开启时高亮蓝底，做出"选中tab"的感觉）
@@ -1373,8 +1423,11 @@ public class UIEditorManagerWindow : EditorWindow
         sb.AppendLine();
 
         // 按层级分组
+        // 跳过层级已失效(下标越界=原层被删)的项：否则会生成 UILayer.XXX(不存在成员)导致使用方编译错。
+        // 这类项应先在"待确认区"重选层级后再生成。
+        int _skipped = allUIItems.Count(item => item.isActive && (item.uiLayer < 0 || item.uiLayer >= UILayers.Count));
         var groupedByLayer = allUIItems
-            .Where(item => item.isActive)
+            .Where(item => item.isActive && item.uiLayer >= 0 && item.uiLayer < UILayers.Count)
             .GroupBy(item => item.uiLayer)
             .OrderBy(group => group.Key);
 
@@ -1451,6 +1504,7 @@ public class UIEditorManagerWindow : EditorWindow
         Debug.Log($"UI路径常量生成完成！");
         Debug.Log($"文件路径: {UI_PATH_CONSTANTS_FILE}");
         Debug.Log($"生成常量数量: {constantIndex}");
+        if (_skipped > 0) Debug.LogWarning($"[UI管理器] 有 {_skipped} 个 UI 因层级已失效被跳过(未生成常量)，请到待确认区重选层级后再生成。");
         Debug.Log($" 生成字典: UIPathDictionary (数量: {uiPathDictEntries.Count}), UILayerDictionary (数量: {uiLayerDictEntries.Count})");
 
         EditorUtility.DisplayDialog("生成成功",

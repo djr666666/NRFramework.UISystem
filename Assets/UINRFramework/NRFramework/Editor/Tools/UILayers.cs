@@ -13,16 +13,27 @@ namespace NRFramework
     /// </summary>
     public static class UILayers
     {
-        /// <summary>当前生效的层级列表（SO 优先，否则默认 12 层）。每次读，保证刷新后即时反映 SO 改动。</summary>
+        // 缓存的层级列表 —— 只在首次访问 / 手动 Reload() 时读 SO，绝不每帧读
+        // （否则 OnGUI 一帧几百次 AssetDatabase.FindAssets，面板直接卡死）。契合"手动刷新"设计。
+        private static List<UILayerConfig.Layer> _cache;
+
+        /// <summary>当前生效的层级列表（读缓存）。首次自动加载；改了 SO 后需手动 Reload() 才刷新。</summary>
         public static List<UILayerConfig.Layer> Layers()
+        {
+            if (_cache == null) Reload();
+            return _cache;
+        }
+
+        /// <summary>重新从 SO 读层级（SO 优先，否则默认 12 层）。打开 UI 管理器 / 点"刷新层级"时调一次。</summary>
+        public static void Reload()
         {
             var guids = AssetDatabase.FindAssets("t:UILayerConfig");
             if (guids != null && guids.Length > 0)
             {
                 var so = AssetDatabase.LoadAssetAtPath<UILayerConfig>(AssetDatabase.GUIDToAssetPath(guids[0]));
-                if (so != null && so.layers != null && so.layers.Count > 0) return so.layers;
+                if (so != null && so.layers != null && so.layers.Count > 0) { _cache = so.layers; return; }
             }
-            return UILayerConfig.Default();
+            _cache = UILayerConfig.Default();
         }
 
         public static int Count => Layers().Count;
