@@ -1,8 +1,8 @@
 {
   "name": "com.nrframework.uisystem",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "displayName": "NRFramework UISystem",
-  "description": "NR 的 UI 框架：Panel/View/Widget 分层 Root + 编辑器工具 + Lua 适配。层级由使用方 UIManager.CreateRoot 在业务层自定义。",
+  "description": "NR 的 UI 框架：Panel/View/Widget 分层 Root + 编辑器工具 + Lua 适配。UI 层级由 UILayerConfig(ScriptableObject) 配置——可增/减/改层，不配则用内置默认 12 层。",
   "unity": "2021.3",
   "author": "djr666666",
   "dependencies": {}

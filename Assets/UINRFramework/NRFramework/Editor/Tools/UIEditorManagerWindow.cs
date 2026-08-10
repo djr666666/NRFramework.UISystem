@@ -20,7 +20,7 @@ public class UIEditorManagerWindow : EditorWindow
         public string prefabName;     // 预制体名称
         public string folderPath;     // 文件夹路径（GUI下的相对路径）
         public string fullFolderPath; // 完整文件夹路径
-        public UILayer uiLayer;       // UI层级
+        public int uiLayer;           // UI层级(下标=层级id，对应 UILayerConfig.layers 的顺序)
         public bool isActive = true;  // 是否激活
         public int sortOrder = 0;     // 排序值
         public bool layerConfirmed = true; // 层级是否已人工确认(false=新扫描自动识别的，进"待确认区")
@@ -39,6 +39,9 @@ public class UIEditorManagerWindow : EditorWindow
         public int raycastCount;   // 开了 raycastTarget 的图形数(交互射线开销)
     }
 
+    // 【已不作数据源】层级数据现在统一由 UILayerConfig(SO) + UILayers 提供；
+    // 下面这个 enum 仅历史保留，UI 管理器内部已全部改用"下标(int)"，不再引用它。
+    // 要增/删/改层级：改 UILayerConfig.asset（没配就是 UILayerConfig.Default() 的 12 层）。
     public enum UILayer
     {
         // ------------------------------------------------------------------第1部分：世界空间UI
@@ -80,9 +83,9 @@ public class UIEditorManagerWindow : EditorWindow
     // 数据存储
     private List<UIItem> allUIItems = new List<UIItem>();
 
-    // 按层级分组的数据结构：UILayer -> List<UIItem>
-    private Dictionary<UILayer, List<UIItem>> layerItems =
-        new Dictionary<UILayer, List<UIItem>>();
+    // 按层级分组的数据结构：层级下标(int) -> List<UIItem>
+    private Dictionary<int, List<UIItem>> layerItems =
+        new Dictionary<int, List<UIItem>>();
 
     private List<string> customScanPaths = new List<string>();
 
@@ -90,7 +93,7 @@ public class UIEditorManagerWindow : EditorWindow
     private Vector2 scrollPosition;
     private string searchText = "";
     private bool showOnlyActive = true;
-    private UILayer filterLayer = UILayer.MainLayer;
+    private int filterLayer = 4;   // 过滤用的层级下标(默认主界面层)；使用处会 Clamp 防越界
     private bool _filterByLayer = false; // false = 显示全部层级，true = 按 filterLayer 过滤
     private bool showSettings = false;
     private bool hideEmptyLayers = false; // 隐藏空层级，列表更聚焦
@@ -103,23 +106,8 @@ public class UIEditorManagerWindow : EditorWindow
     // 展开状态
     private Dictionary<string, bool> layerFoldoutStates = new Dictionary<string, bool>();
 
-    // 所有预定义的UI层级（用于显示空层级）
-    private UILayer[] allLayers = new UILayer[]
-    {
-        
-        UILayer.WorldScene,
-        UILayer.WorldObject,
-        UILayer.WorldEffect,
-        UILayer.DragLayer,
-        UILayer.MainLayer,
-        UILayer.ScreenLayer,
-        UILayer.ModalLayer,
-        UILayer.PopLayer,
-        UILayer.GuideLayer,
-        UILayer.TopLayer,
-        UILayer.LoadingLayer,
-        UILayer.CursorLayer,
-    };
+    // 所有层级下标(0..Count-1)：从 UILayerConfig 动态取，支持开发者增/减层
+    private IEnumerable<int> allLayers => Enumerable.Range(0, UILayers.Count);
 
     // 配置文件路径
     private const string PATH_CONFIG_FILE = "Assets/Resources/path_config.json";
@@ -256,7 +244,8 @@ public class UIEditorManagerWindow : EditorWindow
         // 层级过滤
         bool newFilterByLayer = GUILayout.Toggle(_filterByLayer, "层级:", EditorStyles.toolbarButton, GUILayout.Width(40));
         if (newFilterByLayer != _filterByLayer) { _filterByLayer = newFilterByLayer; FilterUIItems(); }
-        UILayer newFilterLayer = (UILayer)EditorGUILayout.EnumPopup(filterLayer, EditorStyles.toolbarDropDown, GUILayout.Width(100));
+        filterLayer = Mathf.Clamp(filterLayer, 0, Mathf.Max(0, UILayers.Count - 1));
+        int newFilterLayer = EditorGUILayout.Popup(filterLayer, LayerDisplayNames(), EditorStyles.toolbarDropDown, GUILayout.Width(100));
         if (newFilterLayer != filterLayer) { filterLayer = newFilterLayer; if (_filterByLayer) FilterUIItems(); }
 
         // 显示已激活
@@ -441,7 +430,7 @@ public class UIEditorManagerWindow : EditorWindow
             DrawPendingSection(pending);   // 常驻显示(空时也在，兼作"记得点扫描"的引导)
 
             // 遍历所有预定义的层级，确保每个层级都显示
-            foreach (var layer in allLayers.OrderBy(l => (int)l))
+            foreach (var layer in allLayers.OrderBy(l => l))
             {
                 string layerKey = $"layer_{layer}";
 
@@ -558,7 +547,7 @@ public class UIEditorManagerWindow : EditorWindow
 
         // 预制体名称（可点击）
         GUIContent nameContent = new GUIContent(item.prefabName,
-            $"\n     层级: {item.uiLayer}\n     排序: {item.sortOrder} \n     完整路径:      {item.prefabPath}");
+            $"\n     层级: {GetLayerName(item.uiLayer)}\n     排序: {item.sortOrder} \n     完整路径:      {item.prefabPath}");
 
         if (GUILayout.Button(nameContent, EditorStyles.label, GUILayout.Width(200)))
         {
@@ -580,10 +569,10 @@ public class UIEditorManagerWindow : EditorWindow
 
         // 层级选择 - 这里会触发重新分组
         EditorGUILayout.LabelField("层级:", GUILayout.Width(35));
-        UILayer oldLayer = item.uiLayer;
+        int oldLayer = item.uiLayer;
         Color lbg0 = GUI.backgroundColor;
         GUI.backgroundColor = Color.Lerp(Color.white, LayerColor(item.uiLayer), 0.35f);  // 下拉染层级色，和左侧色条呼应
-        UILayer newLayer = (UILayer)EditorGUILayout.EnumPopup(item.uiLayer, GUILayout.Width(100));
+        int newLayer = EditorGUILayout.Popup(item.uiLayer, LayerDisplayNames(), GUILayout.Width(100));
         GUI.backgroundColor = lbg0;
         if (newLayer != oldLayer)
         {
@@ -745,7 +734,7 @@ public class UIEditorManagerWindow : EditorWindow
         EditorGUILayout.Space(12);   // 和下面层级列表明显拉开距离
     }
 
-    void UpdateItemLayer(UIItem item, UILayer oldLayer, UILayer newLayer)
+    void UpdateItemLayer(UIItem item, int oldLayer, int newLayer)
     {
         // 从旧层级移除
         if (layerItems.ContainsKey(oldLayer))
@@ -923,11 +912,7 @@ public class UIEditorManagerWindow : EditorWindow
                 layerConfirmed = false   // 自动识别的，进"待确认区"让用户过目
             };
 
-            // 如果没有检测到明确层级，使用MainLayer作为默认
-            if (item.uiLayer == UILayer.MainLayer)
-            {
-                // 可以在这里添加更多默认层级判断逻辑
-            }
+            // DetectUILayer 猜不中时已回落到默认层(见其结尾 UILayers.DefaultIndex)，这里无需再处理
 
             AnalyzeUIStat(item, prefab);   // 静态体检
             scannedItems.Add(item);
@@ -991,7 +976,8 @@ public class UIEditorManagerWindow : EditorWindow
             layerFoldoutStates[layerKey] = true;
     }
 
-    UILayer DetectUILayer(GameObject prefab, string path)
+    // 返回层级下标(int)：命中层名/关键词 → 对应层下标；开发者删了该层则回落默认层，不崩。
+    int DetectUILayer(GameObject prefab, string path)
     {
         string name = prefab.name.ToLower();
         string folder = Path.GetDirectoryName(path).ToLower();
@@ -1000,33 +986,33 @@ public class UIEditorManagerWindow : EditorWindow
         var segments = new HashSet<string>(folder.Replace('\\', '/').Split('/'), StringComparer.OrdinalIgnoreCase);
         bool HasSeg(string s) => segments.Contains(s);
 
-        // 第一优先级：名称或文件夹含完整枚举名
-        if (name.Contains("worldscene")   || HasSeg("worldscene"))   return UILayer.WorldScene;
-        if (name.Contains("worldobject")  || HasSeg("worldobject"))  return UILayer.WorldObject;
-        if (name.Contains("worldeffect")  || HasSeg("worldeffect"))  return UILayer.WorldEffect;
-        if (name.Contains("draglayer")    || HasSeg("draglayer"))    return UILayer.DragLayer;
-        if (name.Contains("mainlayer")    || HasSeg("mainlayer"))    return UILayer.MainLayer;
-        if (name.Contains("screenlayer")  || HasSeg("screenlayer"))  return UILayer.ScreenLayer;
-        if (name.Contains("modallayer")   || HasSeg("modallayer"))   return UILayer.ModalLayer;
-        if (name.Contains("poplayer")     || HasSeg("poplayer"))     return UILayer.PopLayer;
-        if (name.Contains("guidelayer")   || HasSeg("guidelayer"))   return UILayer.GuideLayer;
-        if (name.Contains("toplayer")     || HasSeg("toplayer"))     return UILayer.TopLayer;
-        if (name.Contains("loadinglayer") || HasSeg("loadinglayer")) return UILayer.LoadingLayer;
-        if (name.Contains("cursorlayer")  || HasSeg("cursorlayer"))  return UILayer.CursorLayer;
+        // 第一优先级：名称或文件夹含完整层名
+        if (name.Contains("worldscene")   || HasSeg("worldscene"))   return UILayers.IndexOf("WorldScene");
+        if (name.Contains("worldobject")  || HasSeg("worldobject"))  return UILayers.IndexOf("WorldObject");
+        if (name.Contains("worldeffect")  || HasSeg("worldeffect"))  return UILayers.IndexOf("WorldEffect");
+        if (name.Contains("draglayer")    || HasSeg("draglayer"))    return UILayers.IndexOf("DragLayer");
+        if (name.Contains("mainlayer")    || HasSeg("mainlayer"))    return UILayers.IndexOf("MainLayer");
+        if (name.Contains("screenlayer")  || HasSeg("screenlayer"))  return UILayers.IndexOf("ScreenLayer");
+        if (name.Contains("modallayer")   || HasSeg("modallayer"))   return UILayers.IndexOf("ModalLayer");
+        if (name.Contains("poplayer")     || HasSeg("poplayer"))     return UILayers.IndexOf("PopLayer");
+        if (name.Contains("guidelayer")   || HasSeg("guidelayer"))   return UILayers.IndexOf("GuideLayer");
+        if (name.Contains("toplayer")     || HasSeg("toplayer"))     return UILayers.IndexOf("TopLayer");
+        if (name.Contains("loadinglayer") || HasSeg("loadinglayer")) return UILayers.IndexOf("LoadingLayer");
+        if (name.Contains("cursorlayer")  || HasSeg("cursorlayer"))  return UILayers.IndexOf("CursorLayer");
 
         // 第二优先级：按文件夹段名模糊匹配（精确到段，防止误判）
-        if (HasSeg("world")    || HasSeg("scene"))     return UILayer.WorldScene;
-        if (HasSeg("object")   || HasSeg("character")) return UILayer.WorldObject;
-        if (HasSeg("effect")   || HasSeg("damage"))    return UILayer.WorldEffect;
-        if (HasSeg("drag")     || HasSeg("follow"))    return UILayer.DragLayer;
-        if (HasSeg("pop")      || HasSeg("dialog"))    return UILayer.PopLayer;
-        if (HasSeg("modal")    || HasSeg("mask"))      return UILayer.ModalLayer;
-        if (HasSeg("guide")    || HasSeg("tutorial"))  return UILayer.GuideLayer;
-        if (HasSeg("top")      || HasSeg("notice"))    return UILayer.TopLayer;
-        if (HasSeg("loading")  || HasSeg("load"))      return UILayer.LoadingLayer;
-        if (HasSeg("cursor")   || HasSeg("mouse"))     return UILayer.CursorLayer;
+        if (HasSeg("world")    || HasSeg("scene"))     return UILayers.IndexOf("WorldScene");
+        if (HasSeg("object")   || HasSeg("character")) return UILayers.IndexOf("WorldObject");
+        if (HasSeg("effect")   || HasSeg("damage"))    return UILayers.IndexOf("WorldEffect");
+        if (HasSeg("drag")     || HasSeg("follow"))    return UILayers.IndexOf("DragLayer");
+        if (HasSeg("pop")      || HasSeg("dialog"))    return UILayers.IndexOf("PopLayer");
+        if (HasSeg("modal")    || HasSeg("mask"))      return UILayers.IndexOf("ModalLayer");
+        if (HasSeg("guide")    || HasSeg("tutorial"))  return UILayers.IndexOf("GuideLayer");
+        if (HasSeg("top")      || HasSeg("notice"))    return UILayers.IndexOf("TopLayer");
+        if (HasSeg("loading")  || HasSeg("load"))      return UILayers.IndexOf("LoadingLayer");
+        if (HasSeg("cursor")   || HasSeg("mouse"))     return UILayers.IndexOf("CursorLayer");
 
-        return UILayer.MainLayer; // 默认主界面层
+        return UILayers.DefaultIndex(); // 默认主界面层
     }
 
     // 静态体检：数图形/材质/纹理/Mask，粗估批次。预制体已加载(扫描时调)，不额外开销。
@@ -1216,7 +1202,7 @@ public class UIEditorManagerWindow : EditorWindow
     {
         // 为每个层级的UI分配连续排序值
         var layerGroups = allUIItems.GroupBy(i => i.uiLayer)
-                                   .OrderBy(g => (int)g.Key);
+                                   .OrderBy(g => g.Key);
 
         int baseOrder = 0;
         foreach (var group in layerGroups)
@@ -1244,46 +1230,20 @@ public class UIEditorManagerWindow : EditorWindow
         FilterUIItems();
     }
 
-    string GetLayerName(UILayer layer)
+    // 层级中文名 —— 统一走 UILayers(读 UILayerConfig)，支持开发者自定义 displayName
+    string GetLayerName(int layer) => UILayers.DisplayName(layer);
+
+    // 层级下拉的显示名数组(按下标顺序)，供 Popup 用
+    string[] LayerDisplayNames()
     {
-        switch (layer)
-        {
-            case UILayer.WorldScene: return "世界场景层";
-            case UILayer.WorldObject: return "世界物体层";
-            case UILayer.WorldEffect: return "世界特效层";
-            case UILayer.DragLayer: return "拖拽层";
-            case UILayer.MainLayer: return "主界面层";
-            case UILayer.ScreenLayer: return "全屏界面层";
-            case UILayer.ModalLayer: return "模态弹窗层";
-            case UILayer.PopLayer: return "普通弹窗层";
-            case UILayer.GuideLayer: return "新手引导层";
-            case UILayer.TopLayer: return "顶层通知";
-            case UILayer.LoadingLayer: return "加载界面层";
-            case UILayer.CursorLayer: return "鼠标光标层";
-            default: return layer.ToString();
-        }
+        int n = UILayers.Count;
+        var arr = new string[n];
+        for (int i = 0; i < n; i++) arr[i] = UILayers.DisplayName(i);
+        return arr;
     }
 
-    // 每个层级一个主题色（色条/圆点/统计chip 用），让面板一眼分区
-    Color LayerColor(UILayer layer)
-    {
-        switch (layer)
-        {
-            case UILayer.WorldScene:   return new Color(0.30f, 0.72f, 0.65f);
-            case UILayer.WorldObject:  return new Color(0.40f, 0.60f, 0.85f);
-            case UILayer.WorldEffect:  return new Color(0.55f, 0.75f, 0.40f);
-            case UILayer.DragLayer:    return new Color(0.60f, 0.60f, 0.66f);
-            case UILayer.MainLayer:    return new Color(0.29f, 0.62f, 1.00f); // 蓝
-            case UILayer.ScreenLayer:  return new Color(0.18f, 0.83f, 0.75f); // 青
-            case UILayer.ModalLayer:   return new Color(0.65f, 0.55f, 0.98f); // 紫
-            case UILayer.PopLayer:     return new Color(0.97f, 0.47f, 0.73f); // 粉
-            case UILayer.GuideLayer:   return new Color(0.22f, 0.77f, 0.81f); // 青蓝
-            case UILayer.TopLayer:     return new Color(0.49f, 0.55f, 1.00f); // 靛
-            case UILayer.LoadingLayer: return new Color(0.94f, 0.53f, 0.24f); // 橙
-            case UILayer.CursorLayer:  return new Color(0.55f, 0.58f, 0.62f); // 灰
-            default:                   return new Color(0.55f, 0.58f, 0.62f);
-        }
-    }
+    // 每个层级一个主题色（色条/圆点/统计chip 用）—— 走 UILayers(读 UILayerConfig 的 color)
+    Color LayerColor(int layer) => UILayers.LayerColor(layer);
 
     // ========== 配置保存和加载 ==========
 
@@ -1407,7 +1367,7 @@ public class UIEditorManagerWindow : EditorWindow
             sb.AppendLine($"        /// <summary>");
             sb.AppendLine($"        /// {layerName}");
             sb.AppendLine($"        /// </summary>");
-            sb.AppendLine($"        {layer} = {(int)layer},");
+            sb.AppendLine($"        {UILayers.EngName(layer)} = {layer},");
         }
         sb.AppendLine("    }");
         sb.AppendLine();
@@ -1416,7 +1376,7 @@ public class UIEditorManagerWindow : EditorWindow
         var groupedByLayer = allUIItems
             .Where(item => item.isActive)
             .GroupBy(item => item.uiLayer)
-            .OrderBy(group => (int)group.Key);
+            .OrderBy(group => group.Key);
 
         int constantIndex = 0;
 
@@ -1436,20 +1396,20 @@ public class UIEditorManagerWindow : EditorWindow
             {
                 // 生成变量名（保持与预制体名称相同，移除文件扩展名）
                 string variableName = GetVariableName(item.prefabName);
-                string enumName = item.uiLayer.ToString();
+                string enumName = UILayers.EngName(item.uiLayer);
 
                 sb.AppendLine($"    /// <summary>");
                 sb.AppendLine($"    /// {item.prefabName}");
                 sb.AppendLine($"    /// 路径: {item.prefabPath}");
                 sb.AppendLine($"    /// 层级: {layerName}");
-                sb.AppendLine($"    /// 层级值: {(int)item.uiLayer}");
+                sb.AppendLine($"    /// 层级值: {item.uiLayer}");
                 sb.AppendLine($"    /// </summary>");
 
                 // 路径常量 - 使用 预制体名_UIPanel 格式
                 sb.AppendLine($"    public const string {variableName}_UIPanel = \"{item.prefabPath}\";");
 
                 // 层级常量 - 使用 预制体名_UIlayer 格式
-                sb.AppendLine($"    public const int {variableName}_UIlayer = {(int)item.uiLayer};");
+                sb.AppendLine($"    public const int {variableName}_UIlayer = {item.uiLayer};");
 
                 sb.AppendLine();
 
