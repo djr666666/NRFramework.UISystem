@@ -253,8 +253,8 @@ Game.Instance.uiRoots[UIPathConstants.Pnl_Main_UIlayer].uI
 | 名字 | 框架怎么用 | 约束 |
 |---|---|---|
 | `GGame` | `Resources.Load<GameObject>("GGame")` | 预制体必须叫 `GGame`，且放在**某个 `Resources/` 目录**下 |
-| `UICanvas` | `GameObject.Find("UICanvas")` 全局按名字找 | GGame 里的画布 GameObject 必须叫 `UICanvas`、场景唯一 |
-| `UICamera` | `GameObject.Find("UICamera")` 全局按名字找 | GGame 里的相机 GameObject 必须叫 `UICamera`、场景唯一 |
+| `UICanvas` | 从 GGame 实例的子树里按名找（不全局搜） | GGame 里的画布 GameObject 必须叫 `UICanvas`（GGame 内唯一即可） |
+| `UICamera` | 从 GGame 实例的子树里按名找（不全局搜） | GGame 里的相机 GameObject 必须叫 `UICamera`（GGame 内唯一即可） |
 
 **除这三个名字外，GGame 随便改** —— 往里拖加载/进度条界面、改布局、加子物体、别人扩展结构，都不影响框架。
 

@@ -27,6 +27,14 @@ namespace NRFramework
 
             Debug.Log($"<color=#FFFB04>--->  Resources.Load GGame <---</color>");
             var go = Resources.Load<GameObject>(Config.GGame);
+            if (go == null)
+            {
+                // 漏建 GGame 是最常见的接入错误。给明确指引，别让它烂在 Instantiate(null) 的隐晦报错里。
+                Debug.LogError($"[NRFramework] 启动失败：Resources 里找不到启动预制体 \"{Config.GGame}\"。\n" +
+                               $"请先用菜单【Tools ▸ NRFramework ▸ 创建 GGame】生成一份到 Assets/Resources/{Config.GGame}.prefab 再启动（见 README「GGame 约定」）。");
+                return;
+            }
+
             var obj = GameObject.Instantiate(go);
             DontDestroyOnLoad(obj);
             obj.name = Config.GGameName;
@@ -34,11 +42,35 @@ namespace NRFramework
             obj.transform.localScale = new Vector3(1, 1, 1);
             obj.transform.localPosition = new Vector3(0, 0, 0);
 
-            uiCanvas = GameObject.Find(Config.kUICanvasPath).GetComponent<Canvas>();
-            uiCamera = GameObject.Find(Config.kUICameraPath).GetComponent<Camera>();
+            // 从 GGame 实例【自身子树】里按名找 UICanvas / UICamera —— 不用 GameObject.Find 全局搜：
+            // 避免使用方场景里存在同名物体被误绑，也更快（框架本就持有这个实例）。
+            var canvasTrans = FindChildByName(obj.transform, Config.kUICanvasPath);
+            var cameraTrans = FindChildByName(obj.transform, Config.kUICameraPath);
+            if (canvasTrans == null || cameraTrans == null)
+            {
+                Debug.LogError($"[NRFramework] 启动失败：启动预制体 \"{Config.GGame}\" 里没找到 " +
+                               $"\"{Config.kUICanvasPath}\" 或 \"{Config.kUICameraPath}\" 子物体。\n" +
+                               $"这两个名字是框架启动约定、不能改（见 Config.cs / README「GGame 约定」）。");
+                return;
+            }
+            uiCanvas = canvasTrans.GetComponent<Canvas>();
+            uiCamera = cameraTrans.GetComponent<Camera>();
+
             rootDict = new Dictionary<string, UIRoot>();
             m_FocusingPanels = new List<UIPanel>();
             m_TempNewFocusingPanels = new List<UIPanel>();
+        }
+
+        // 在指定根的子树里（含自身、含未激活）按名字找第一个 Transform，找不到返回 null。
+        // 用于在 GGame 实例内定位 UICanvas / UICamera，替代全局 GameObject.Find（避免场景同名误绑、更快）。
+        private static Transform FindChildByName(Transform root, string name)
+        {
+            var all = root.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < all.Length; i++)
+            {
+                if (all[i].name == name) return all[i];
+            }
+            return null;
         }
 
 

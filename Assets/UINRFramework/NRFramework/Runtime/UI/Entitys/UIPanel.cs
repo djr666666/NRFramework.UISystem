@@ -15,7 +15,7 @@ namespace NRFramework
     public enum UIPanelShowState { Initing, Refreshing, Idle, Hidden, /* Destroyed */ }
 
     public enum UIPanelAnimState { Opening, Idle, Closing, Closed }
-    public enum UIPanelState { Show, Hidden}
+    public enum UIPanelState { Show, Hidden, Loading }   // Loading=异步加载中的占位态（还没进 panelDict）；加载完成转 Show
     public abstract class UIPanel : UIView 
     {
         public string panelId { get { return viewId; } }

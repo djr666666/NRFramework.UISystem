@@ -1,6 +1,6 @@
 {
   "name": "com.nrframework.uisystem",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "displayName": "NRFramework UISystem",
   "description": "NR 的 UI 框架：Panel/View/Widget 分层 Root + 编辑器工具 + Lua 适配。UI 层级由 UILayerConfig(ScriptableObject) 配置（可增/减/改层，不配用默认 12 层）；面板加载全异步（IUIResLoader.LoadPrefabAsync）。",
   "unity": "2021.3",
