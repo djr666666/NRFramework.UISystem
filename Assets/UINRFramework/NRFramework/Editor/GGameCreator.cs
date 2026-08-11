@@ -54,4 +54,45 @@ namespace NRFramework
             }
         }
     }
+
+    /// <summary>
+    /// 一键生成默认 12 层的 UILayerConfig 到使用方 Assets/Resources/UILayerConfig.asset。
+    /// 框架 Game.Init 会用 Resources.Load 读它（键名 "UILayerConfig"）；没有则退回内置默认 12 层。
+    /// 生成后在 Inspector 按需增 / 减 / 改层（建议末尾增减），改完到 UI管理器点「🔄 刷新层级」同步。
+    /// </summary>
+    public static class UILayerConfigCreator
+    {
+        private const string kLayerConfigPath = "Assets/Resources/UILayerConfig.asset";
+
+        [MenuItem("Tools/NRFramework/创建 UILayerConfig（默认 12 层，到 Assets/Resources）")]
+        public static void CreateUILayerConfig()
+        {
+            // 已存在就不覆盖，避免冲掉使用方改过的层级配置
+            if (!string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(kLayerConfigPath)))
+            {
+                EditorGUIUtility.PingObject(AssetDatabase.LoadAssetAtPath<UILayerConfig>(kLayerConfigPath));
+                EditorUtility.DisplayDialog("已存在",
+                    "已经有 " + kLayerConfigPath + " 了，不重复创建。\n要改层级直接选中它在 Inspector 改；要重建请先手动删掉再点。", "知道了");
+                return;
+            }
+
+            // 确保 Assets/Resources 目录存在
+            if (!AssetDatabase.IsValidFolder("Assets/Resources"))
+            {
+                AssetDatabase.CreateFolder("Assets", "Resources");
+            }
+
+            // 直接建一份带默认 12 层的配置（Game.Init 的 Resources.Load("UILayerConfig") 会读到它）
+            var config = ScriptableObject.CreateInstance<UILayerConfig>();
+            config.layers = UILayerConfig.Default();
+            AssetDatabase.CreateAsset(config, kLayerConfigPath);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
+            EditorGUIUtility.PingObject(config);
+            Selection.activeObject = config;
+            EditorUtility.DisplayDialog("创建成功",
+                "已生成 " + kLayerConfigPath + "（默认 12 层）。\n\n在 Inspector 按需增 / 减 / 改层（建议末尾增减），\n改完到【Tools ▸ UI管理器】点「🔄 刷新层级」同步。", "好的");
+        }
+    }
 }

@@ -34,7 +34,7 @@
 
 ## 🧩 环境依赖
 - Unity（UGUI）
-- **YooAsset**（资源加载）
+- **YooAsset**（**可选**，生产环境资源加载）—— 加载已抽成 `IUIResLoader` 接口，编辑器默认走 AssetDatabase，**不接 YooAsset 也能直接跑**；上线 / 打包前再按需接（见「换资源加载器」）。
 - **Luban**（可选，配表导出）
 - **HybridCLR**（可选，热更）
 
@@ -53,7 +53,7 @@ https://github.com/djr666666/NRFramework.UISystem.git?path=/Assets/UINRFramework
 ```
 指定版本用 tag：`…NRFramework.UISystem.git?path=/Assets/UINRFramework/NRFramework#v1.0.11`
 
-> **前提**：① 本机装了 **Git**（UPM 拉 git 包依赖系统 git，没装会报 `Cannot find git`）；② 先装依赖 **YooAsset**（见上「环境依赖」）。
+> **前提**：本机装了 **Git**（UPM 拉 git 包依赖系统 git，没装会报 `Cannot find git`）。资源加载默认走编辑器 AssetDatabase 即可跑，**YooAsset 是可选项**，上线 / 打包前再按需接（见「换资源加载器」）。
 >
 
 
@@ -76,8 +76,8 @@ UI 层级是一份 **ScriptableObject**：`UILayerConfig`。放在使用方**某
 - 每层字段：`name`（英文层名，不带下划线）/ `startOrder` / `endOrder` / `displayName`（编辑器里显示的中文名）/ `color`（编辑器色条 / chip 颜色）。
 
 ### 怎么配
-1. `Assets ▸ Create ▸ NRFramework ▸ UILayerConfig`，把生成的 `UILayerConfig.asset` 放进任意 `Resources/` 目录。
-2. 新建的 SO 是空的 → Inspector 右上角「⋮」菜单点 **「填入默认 12 层」**，基于默认 12 层改。
+1. **一键生成（推荐）**：菜单 `Tools ▸ NRFramework ▸ 创建 UILayerConfig`，自动在 `Assets/Resources/` 下生成一份**带默认 12 层**的 `UILayerConfig.asset`（已存在则不覆盖）。
+2. 选中它，在 Inspector 里按需增 / 减 / 改层。（也可手动 `Assets ▸ Create ▸ NRFramework ▸ UILayerConfig` 建一份空的，再点右上角「⋮ ▸ 填入默认 12 层」。）
 3. 增 / 减层建议**在末尾操作**（下标稳定，不会打乱已有界面的层级 id 和已生成常量）；改完到 UI 管理器点「🔄 刷新层级」同步。
 
 > ⚠ **只推荐末尾增减层**。在中间插 / 删层会让后面所有层的下标（= 层级 id）整体错位，且值没越界时检测不到——需要重排界面层级并重新生成常量。层级是架构级配置，建议项目早期一次定好。
@@ -310,6 +310,8 @@ Game.Instance.Init();
 ---
 
 ## 🚀 快速开始
+
+> **接入前置（各做一次）**：菜单 `Tools ▸ NRFramework` 一键生成两份开箱资源到 `Assets/Resources/` —— **创建 GGame**（启动预制体，含 UICanvas / UICamera，见「GGame 约定」）+ **创建 UILayerConfig**（层级配置，默认 12 层，见「层级体系」）。都是你自己的资源、可随便改。
 
 ### 1. 初始化框架（启动时调一次）
 ```csharp
