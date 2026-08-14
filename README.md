@@ -382,10 +382,6 @@ OpenUI_Local<Pnl_Main_Temp>(p => p.Init(/* ... */));
 ```
 > （也可以走 Luban 配表拿层级 / 路径，思路一样，把 `CreatePanel` 换成 `CreatePanelAsync` 的回调写法即可。）
 
-> 📸 ![打开UI编辑器](Assets/Image/快速开始1.png)
-> 📸 ![打开UI编辑器](Assets/Image/快速方法2.png)
-> 📸 ![打开UI编辑器](Assets/Image/快速方法3.png)
-
 ---
 
 ## 🖼️ 制作一个界面（完整流程）
@@ -480,10 +476,6 @@ DestroyWidget("Item_3");        // 按 id
 DestroyWidget<Wdg_Header_Temp>();
 DestroyAllWidgets();            // 全清（面板销毁时自动调）
 ```
-
-> 📸 ![打开UI编辑器](Assets/Image/wid用法1.png)
-> 📸 ![打开UI编辑器](Assets/Image/wid用法2.png)
-> 📸 ![打开UI编辑器](Assets/Image/wid用法3.png)
 
 
 ## 🔗 事件绑定
