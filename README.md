@@ -51,7 +51,7 @@ https://github.com/djr666666/NRFramework.UISystem.git?path=/Assets/UINRFramework
 ```json
 "com.nrframework.uisystem": "https://github.com/djr666666/NRFramework.UISystem.git?path=/Assets/UINRFramework/NRFramework"
 ```
-指定版本用 tag：`…NRFramework.UISystem.git?path=/Assets/UINRFramework/NRFramework#v1.0.11`
+指定版本用 tag：`…NRFramework.UISystem.git?path=/Assets/UINRFramework/NRFramework#v1.0.12`
 
 > **前提**：本机装了 **Git**（UPM 拉 git 包依赖系统 git，没装会报 `Cannot find git`）。资源加载默认走编辑器 AssetDatabase 即可跑，**YooAsset 是可选项**，上线 / 打包前再按需接（见「换资源加载器」）。
 >
