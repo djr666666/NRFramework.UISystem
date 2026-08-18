@@ -62,7 +62,7 @@ https://github.com/djr666666/NRFramework.UISystem.git?path=/Assets/UINRFramework
 - **Generated Base UI Root Dir**（代码导出 base 路径配置）
 - **Generated Temp UI Root Dir**（代码导出 Temp 路径配置）
 - **UI Prefab Root Dir**（存放 UI 预制体路径）
-> 📸 ![打开UI编辑器](Assets/Image/环境配置.png)
+> 📸 ![打开UI编辑器](Assets/Image/环境配置pro_1.png)
 
 ---
 
