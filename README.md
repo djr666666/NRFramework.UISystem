@@ -444,8 +444,6 @@ Game.Instance.uiRoots[UIPathConstants.Pnl_Main_UIlayer].uI
 ```
 
 > 📸 ![打开UI编辑器](Assets/Image/界面制作_1.png)
-> 📸 ![打开UI编辑器](Assets/Image/界面制作_2.png)
-
 ---
 
 ## 🧱 Widget 用法（异步加载 vs 现成对象）
