@@ -416,7 +416,11 @@ OpenUI_Local<Pnl_Main_Temp>(p => p.Init(/* ... */));
 ### 第 3 步：生成 Base 代码
 - 在 `UIPanelBehaviour` 的 Inspector 上点 **生成/导出 Base**，会生成 `Xxx_Base` 类，
   自动把标记的节点绑成 `m_XXX` 字段、并在 `OnBindCompsAndEvents` 里连好事件。
-
+  - **展示**
+  - **ExportBase---ExportTemp** 一键导出代码base  一件导出代码temp （会根据editorsetting 自动生成路径代码配置，可以不需要手动）
+  - **FindBase---FindTemp** 查找代码
+  - **UpdateBaseName---UpdateTempName** 如果你的预制体改名字了，那么需要更新脚本名字
+> 📸 ![打开UI编辑器](Assets/Image/展示.png)
 ### 第 4 步：写面板逻辑类（继承 Base）
 ```csharp
 public class Pnl_Main_Temp : Pnl_MainBase
