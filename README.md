@@ -65,8 +65,17 @@ https://github.com/djr666666/NRFramework.UISystem.git?path=/Assets/UINRFramework
 > 📸 ![打开UI编辑器](Assets/Image/环境配置pro_1.png)
 
 ---
+## 🧩 一 GGame配置
+- **这是直接服务于架构层级和对象UI命名,初始化需要加载GGame**
+- 菜单栏Tools->创建GGame你可以理解为这是UI框架架构起点
+- **规则不可变**
+- **UICamera**--这是UI框架必须要的命名
+- **UICancas**--这是UI框架画板必须要的命名
+- 其他更多应用可以随意在这个预制体修改（例 ： 你可以直接把YOOOASSET 示例加载进度条面板直接扔进来游戏启动会直接加载 GGame）
+> 📸 ![打开UI编辑器](Assets/Image/GGame.png)
 
-## 🗂️ 二 层级体系配置（UILayerConfig 可配置）
+---
+## 🗂️ 三 层级体系配置（UILayerConfig 可配置）
 
 UI 层级是一份 **ScriptableObject**：`UILayerConfig`。放在使用方**某个 `Resources/` 目录**下、命名 `UILayerConfig.asset`。`Game.Init()` 与 UI 管理器都读它；**没配置就用内置默认 12 层**（与原框架完全一致，老工程无痛升级）。
 
