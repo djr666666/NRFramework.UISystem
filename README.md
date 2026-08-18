@@ -410,7 +410,9 @@ OpenUI_Local<Pnl_Main_Temp>(p => p.Init(/* ... */));
 ### 第 2 步：标记要绑定的节点
 - 选中要在代码里用的节点（按钮/文本/图片…）→ 右键 **`SetAsUIOpElement`** 标记为操作元素。
 - 取消标记用 `RemoveUIOpElement`。
-
+- **你可以选中右键快捷全部set属性**
+> 📸 ![打开UI编辑器](Assets/Image/界面制作_1.png)
+---
 ### 第 3 步：生成 Base 代码
 - 在 `UIPanelBehaviour` 的 Inspector 上点 **生成/导出 Base**，会生成 `Xxx_Base` 类，
   自动把标记的节点绑成 `m_XXX` 字段、并在 `OnBindCompsAndEvents` 里连好事件。
@@ -443,8 +445,7 @@ Game.Instance.uiRoots[UIPathConstants.Pnl_Main_UIlayer].uI
     });
 ```
 
-> 📸 ![打开UI编辑器](Assets/Image/界面制作_1.png)
----
+
 
 ## 🧱 Widget 用法（异步加载 vs 现成对象）
 
