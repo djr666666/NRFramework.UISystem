@@ -79,7 +79,8 @@ UI 层级是一份 **ScriptableObject**：`UILayerConfig`。放在使用方**某
 1. **一键生成（推荐）**：菜单 `Tools ▸ NRFramework ▸ 创建 UILayerConfig`，自动在 `Assets/Resources/` 下生成一份**带默认 12 层**的 `UILayerConfig.asset`（已存在则不覆盖）。
 2. 选中它，在 Inspector 里按需增 / 减 / 改层。（也可手动 `Assets ▸ Create ▸ NRFramework ▸ UILayerConfig` 建一份空的，再点右上角「⋮ ▸ 填入默认 12 层」。）
 3. 增 / 减层建议**在末尾操作**（下标稳定，不会打乱已有界面的层级 id 和已生成常量）；改完到 UI 管理器点「🔄 刷新层级」同步。
-
+> 📸 ![打开UI编辑器](Assets/Image/层级体系配置.png)
+> 📸 ![打开UI编辑器](Assets/Image/层级体系配置_1.png)
 > ⚠ **只推荐末尾增减层**。在中间插 / 删层会让后面所有层的下标（= 层级 id）整体错位，且值没越界时检测不到——需要重排界面层级并重新生成常量。层级是架构级配置，建议项目早期一次定好。
 
 ### 默认 12 层
