@@ -227,6 +227,7 @@ UI 层级是一份 **ScriptableObject**：`UILayerConfig`。放在使用方**某
    - **先执行 1 再执行 2**。
 
 > 📸 ![打开UI编辑器](Assets/Image/生成路径_1.png)
+
 > 📸 ![打开UI编辑器](Assets/Image/生成路径_2.png)
 
 ## 🔑 生成的路径常量（UIPathConstants）
