@@ -58,7 +58,7 @@ https://github.com/djr666666/NRFramework.UISystem.git?path=/Assets/UINRFramework
 
 
 ## 🧩 环境配置
-- EditorSetting
+- **引入UPM包以后会自动生成EditorSetting在你的Asstes路径下**
 - **Generated Base UI Root Dir**（代码导出 base 路径配置）
 - **Generated Temp UI Root Dir**（代码导出 Temp 路径配置）
 - **UI Prefab Root Dir**（存放 UI 预制体路径）
