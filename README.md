@@ -57,7 +57,7 @@ https://github.com/djr666666/NRFramework.UISystem.git?path=/Assets/UINRFramework
 >
 
 
-## 🧩 环境配置
+## 🧩 一 环境配置
 - **引入UPM包以后会自动生成EditorSetting在你的Assts路径下**
 - **Generated Base UI Root Dir**（代码导出 base 路径配置）
 - **Generated Temp UI Root Dir**（代码导出 Temp 路径配置）
@@ -66,7 +66,7 @@ https://github.com/djr666666/NRFramework.UISystem.git?path=/Assets/UINRFramework
 
 ---
 
-## 🗂️ 层级体系（UILayerConfig 可配置）
+## 🗂️ 二 层级体系配置（UILayerConfig 可配置）
 
 UI 层级是一份 **ScriptableObject**：`UILayerConfig`。放在使用方**某个 `Resources/` 目录**下、命名 `UILayerConfig.asset`。`Game.Init()` 与 UI 管理器都读它；**没配置就用内置默认 12 层**（与原框架完全一致，老工程无痛升级）。
 
