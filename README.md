@@ -397,6 +397,47 @@ public static void OpenUI_Local<T>(Action<T> onCreated = null) where T : UIPanel
 // 调用：
 OpenUI_Local<Pnl_Main_Temp>(p => p.Init(/* ... */));
 ```
+
+**关闭 / 显隐 / 判断是否打开**——这三个操作的都是**已经加载进内存的面板**（查字典、`SetActive`、`Destroy`），
+不涉及资源加载，所以**都是同步的，不需要回调**。取层级 / uiroot 的写法和 `OpenUI_Local` 完全一致：
+
+```csharp
+// 关闭面板
+public static void CloseUI_Local<T>() where T : UIPanel
+{
+    var csName = typeof(T).Name;
+    string result = csName.Replace("_Temp", "");
+    int panelType = (int)UIPathConstants.UILayerDictionary[result];
+    var uiroot = Game.Instance.uiRoots[panelType];
+    uiroot.uI.ClosePanel<T>();
+}
+
+// 显 / 隐（不销毁，只切 active）
+public static void SetPanelVisible_Local<T>(bool isActive) where T : UIPanel
+{
+    var csName = typeof(T).Name;
+    string result = csName.Replace("_Temp", "");
+    int panelType = (int)UIPathConstants.UILayerDictionary[result];
+    var uiroot = Game.Instance.uiRoots[panelType];
+    uiroot.uI.SetPanelVisible<T>(isActive);
+}
+
+// 是否已打开
+public static bool IsPanelOpened<T>() where T : UIPanel
+{
+    var csName = typeof(T).Name;
+    string result = csName.Replace("_Temp", "");
+    int panelType = (int)UIPathConstants.UILayerDictionary[result];
+    var uiroot = Game.Instance.uiRoots[panelType];
+    return uiroot.uI.IsPanelOpened<T>();
+}
+
+// 调用：
+CloseUI_Local<Pnl_Main_Temp>();
+SetPanelVisible_Local<Pnl_Main_Temp>(false);
+if (IsPanelOpened<Pnl_Main_Temp>()) { /* ... */ }
+```
+> **只有"开面板"要异步**（`CreatePanelAsync` 要等 prefab 加载）；关闭 / 显隐 / 判断都是同步的。
 > （也可以走 Luban 配表拿层级 / 路径，思路一样，把 `CreatePanel` 换成 `CreatePanelAsync` 的回调写法即可。）
 
 ---
