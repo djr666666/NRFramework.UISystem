@@ -47,8 +47,16 @@ namespace NRFramework
                 _loadedPrefabPath = prefabPath;   // 记住加载来源，销毁时释放（见 OnInternalDestroying）
 
                 UIViewBehaviour viewBehaviour = go.GetComponent<UIViewBehaviour>();
-
-                Debug.Assert(viewBehaviour != null, "UIViewBehaviour组件不存在");
+                if (viewBehaviour == null)
+                {
+                    // 不能只靠 Debug.Assert：它在 Release 包里会被剥离，紧接着 Create 里访问 viewBehaviour.gameObject 直接空引用。
+                    Debug.LogError($"[NRFramework] 预制体 \"{prefabPath}\" 根节点上没有 UIPanelBehaviour / UIWidgetBehaviour 组件，无法创建界面。");
+                    GameObject.Destroy(go);
+                    UIRes.Loader.ReleasePrefab(prefabPath);
+                    _loadedPrefabPath = null;
+                    onCreated?.Invoke(false);
+                    return;
+                }
 
                 Create(viewId, parentTransform, viewBehaviour);   // 复用同步的 behaviour 版流水线（不加载）
                 onCreated?.Invoke(true);

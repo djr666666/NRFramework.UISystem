@@ -27,7 +27,11 @@ namespace NRFramework
         public const string GGameName = "GGame";
         // =====================================================================================
 
-        /// <summary>UIPanel 默认厚度（普通默认值，非硬约束）。</summary>
-        public const int kDefaultPanelThickness = 10;
+        /// <summary>
+        /// UIPanel 默认厚度（普通默认值，非硬约束）。
+        /// 含义：本面板之上预留多少个 sortingOrder 空位给界面内部使用；下一个面板的 order = 本面板 order + thickness + 1。
+        /// 即每个面板实际占用 thickness + 1 个号，所以一层能同时打开的面板数 ≈ 该层 order 区间宽度 / (thickness + 1)。
+        /// </summary>
+        public const int kDefaultPanelThickness = 5;
     }
 }

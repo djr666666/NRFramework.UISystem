@@ -432,13 +432,13 @@ MonoBehaviour:
     - {fileID: 408407041794007862}
   m_ExportedBaseName: 
   m_ExportedTempName: 
-  m_PanelType: 2
+  m_PanelType: 0
   m_HasBg: 1
-  m_BgShowType: 1
+  m_BgShowType: 0
   m_CustomBgColor: {r: 1, g: 1, b: 1, a: 1}
-  m_BgClickEventType: 2
+  m_BgClickEventType: 1
   m_GetFocusType: 1
-  m_EscPressEventType: 0
+  m_EscPressEventType: 1
   m_Thickness: 10
   m_OpenAnimPlayMode: 0
   m_CloseAnimPlayMode: 0

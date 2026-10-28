@@ -132,7 +132,9 @@ namespace NRFramework
             List<UIPanel> vaildPanels = new List<UIPanel>();
             foreach (UIPanel panel in m_FocusingPanels)
             {
-                if (panel != null) { vaildPanels.Add(panel); }
+                // UIPanel 是普通 C# 对象，不是 UnityEngine.Object，销毁后引用依然非 null。
+                // 真正的「已销毁」标志是 panelId（即 viewId）被置空，必须一起判，否则会把死面板交给调用方。
+                if (panel != null && panel.panelId != null) { vaildPanels.Add(panel); }
             }
             return vaildPanels;
         }

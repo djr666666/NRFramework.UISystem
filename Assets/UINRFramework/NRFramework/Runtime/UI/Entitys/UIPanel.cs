@@ -43,6 +43,10 @@ namespace NRFramework
 
         internal void Close(Action onFinish = null)
         {
+            // 关闭动画播放期间面板还在屏幕上，若不关掉射线，连点关闭按钮的第二下会落到正在消失的面板上，
+            // 可能触发一次本不该发生的业务逻辑（或再次调用 Close）。这里统一断掉输入，不依赖具体用哪种动画。
+            if (graphicRaycaster != null) { graphicRaycaster.enabled = false; }
+
             PlayCloseAnim(() =>
             {
                 base.Destroy();
@@ -90,7 +94,7 @@ namespace NRFramework
                 case UIPanelBgClickEventType.PassThrough:
                     UIBlocker.Instance.Bind(rectTransform, panelBehaviour.bgTexture, panelBehaviour.bgColor, true, null);
                     break;
-                case UIPanelBgClickEventType.DontRespone:
+                case UIPanelBgClickEventType.DontRespond:
                     UIBlocker.Instance.Bind(rectTransform, panelBehaviour.bgTexture, panelBehaviour.bgColor, false, null);
                     break;
                 case UIPanelBgClickEventType.CloseSelf:
@@ -100,7 +104,7 @@ namespace NRFramework
                         CloseSelf(null); 
                     });
                     break;
-                case UIPanelBgClickEventType.DestorySelf:
+                case UIPanelBgClickEventType.DestroySelf:
                     UIBlocker.Instance.Bind(rectTransform, panelBehaviour.bgTexture, panelBehaviour.bgColor, false, () => 
                     {
                         if (showState != UIPanelShowState.Idle) { return; }
@@ -128,13 +132,13 @@ namespace NRFramework
 
             switch (panelBehaviour.escPressEventType)
             {
-                case UIPanelEscPressEventType.DontRespone:
+                case UIPanelEscPressEventType.DontRespond:
                     //do nothing
                     break;
                 case UIPanelEscPressEventType.CloseSelf:
                     CloseSelf(null);
                     break;
-                case UIPanelEscPressEventType.DestorySelf:
+                case UIPanelEscPressEventType.DestroySelf:
                     DestroySelf();
                     break;
                 case UIPanelEscPressEventType.Custom:
@@ -167,8 +171,6 @@ namespace NRFramework
         {
             if (panelBehaviour.ExistValidAnimator() && panelBehaviour.openAnimPlayMode == UIPanelOpenAnimPlayMode.AutoPlay)
             {
-                Debug.Assert(animState != UIPanelAnimState.Opening && animState != UIPanelAnimState.Closing);
-
                 animState = UIPanelAnimState.Opening;
                 panelBehaviour.PlayOpenAnim(() => { animState = UIPanelAnimState.Idle; onFinish?.Invoke(); });
             }
@@ -181,10 +183,11 @@ namespace NRFramework
 
         protected virtual void PlayCloseAnim(Action onFinish = null)
         {
+            //已在关闭中/已关闭：不重复播，更不能重复触发 onFinish（那会导致二次 Destroy）
+            if (animState == UIPanelAnimState.Closing || animState == UIPanelAnimState.Closed) { return; }
+
             if (panelBehaviour.ExistValidAnimator() && panelBehaviour.closeAnimPlayMode == UIPanelCloseAnimPlayMode.AutoPlay)
             {
-                Debug.Assert(animState != UIPanelAnimState.Opening && animState != UIPanelAnimState.Closing);
-
                 animState = UIPanelAnimState.Closing;
                 panelBehaviour.PlayCloseAnim(() => { animState = UIPanelAnimState.Closed; onFinish?.Invoke(); });
             }
@@ -221,7 +224,7 @@ namespace NRFramework
 
         protected internal override void OnInternalDestroying()
         {
-            UIBlocker.Instance.Unbind();
+            UIBlocker.Instance.UnbindFrom(rectTransform);   //只解绑挂在自己身上的遮罩，别动已经绑到其它面板上的
 
             //组件引用解除即可, 实例会随gameObject销毁
             canvasGroup = null;

@@ -50,6 +50,17 @@ namespace NRFramework
             if (!passThrough && onClick != null) { m_Btn.onClick.AddListener(() => { onClick(); }); }
         }
 
+        /// <summary>
+        /// 仅当遮罩当前确实挂在 parent 下时才解绑。
+        /// 面板销毁必须走这个、不能直接 Unbind()：带关闭动画的面板是在 SetBackgroundAndFocus 之后才真正销毁的，
+        /// 那时遮罩早已重新绑到别的面板上，无条件 Unbind 会把它从那个面板身上扯走、导致背景凭空消失。
+        /// </summary>
+        internal void UnbindFrom(Transform parent)
+        {
+            if (m_RectTrransform.parent != parent) { return; }
+            Unbind();
+        }
+
         internal void Unbind()
         {
             if (transform.parent == UIBlocker.commonRoot) { return; }

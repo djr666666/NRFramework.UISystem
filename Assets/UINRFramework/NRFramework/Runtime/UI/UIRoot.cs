@@ -29,7 +29,15 @@ namespace NRFramework
 
         public void CreatePanelAsync<T>(string panelId, string prefabPath, int sortingOrder, Action<bool, T> onCreated) where T : UIPanel
         {
-            Debug.Assert(sortingOrder >= startOrder && sortingOrder <= endOrder);
+            // 层级溢出：本层的 order 区间被占满了（同时开的面板太多，或某些面板 thickness 给得过大）。
+            // 这里只能警告不能拦截——拦了界面就打不开。用 LogError 而不是 Debug.Assert，后者在 Release 包里会被剥离，
+            // 真机上面板会悄悄串到相邻层级之上/之下，表现为「某个界面莫名其妙被别的界面盖住」，极难排查。
+            if (sortingOrder < startOrder || sortingOrder > endOrder)
+            {
+                Debug.LogError($"[NRFramework] 层级溢出：root \"{rootId}\" 的区间是 [{startOrder}, {endOrder}]，" +
+                               $"面板 {panelId} 算出来的 sortingOrder = {sortingOrder}，已经超出去了。\n" +
+                               $"请调大该层区间（UILayerConfig），或调小面板的 Thickness。");
+            }
 
             // 【加载期判重·对策①】已有占位（加载中 或 已打开）→ 不重复发起。
             // 真异步(YooAsset)下若不拦，加载途中再开同一个会二次加载 + 稍后第二次 panelDict.Add 抛 key 重复。
@@ -144,9 +152,14 @@ namespace NRFramework
             //Debug.Log($"SetPanelVisible 这个方法 panelId ={panelId}");
 
 
-            Debug.Assert( panelDict.ContainsKey(panelId));
+            // 不能只靠 Debug.Assert：它在 Release 包里会被剥离，之后 panelDict[panelId] 直接抛 KeyNotFoundException。
+            // 面板已关闭 / 还在异步加载中时调用显隐是常见情况，这里安全返回并给出可定位的日志。
+            if (!panelDict.TryGetValue(panelId, out UIPanel panel))
+            {
+                Debug.LogWarning($"[NRFramework] SetPanelVisible 失败：面板 {panelId} 不存在（已关闭，或仍在异步加载中）");
+                return;
+            }
 
-            UIPanel panel = panelDict[panelId];
             panel.SetVisible(visible);
             if (visible)
                 panelStateDict[panelId] = UIPanelState.Show;
@@ -194,6 +207,7 @@ namespace NRFramework
         {
             comp = null;
             if (string.IsNullOrEmpty(panelId)) { return FindCompErrorCode.PANEL_ID_IS_NULL_OR_EMPTY; }
+            if (!ExistPanel(panelId)) { return FindCompErrorCode.NOT_EXIST_THIS_PANEL; }   //漏了这句的话 GetPanel 会直接抛 KeyNotFoundException
             UIPanel panel = GetPanel(panelId);
             return panel.FindComponent<T>(compDefine, out comp);
         }
