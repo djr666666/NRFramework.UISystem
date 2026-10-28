@@ -24,6 +24,11 @@ namespace NRFramework
 
         private void Awake()
         {
+            // 这三个集合必须先建好再做下面的校验。否则启动校验一旦失败就 return，
+            // 它们保持 null，后续每次 CreateRoot 都会在 rootDict 上抛空引用，把真正有用的那条错误信息刷没。
+            rootDict = new Dictionary<string, UIRoot>();
+            m_FocusingPanels = new List<UIPanel>();
+            m_TempNewFocusingPanels = new List<UIPanel>();
 
             Debug.Log($"<color=#FFFB04>--->  Resources.Load GGame <---</color>");
             var go = Resources.Load<GameObject>(Config.GGame);
@@ -56,9 +61,12 @@ namespace NRFramework
             uiCanvas = canvasTrans.GetComponent<Canvas>();
             uiCamera = cameraTrans.GetComponent<Camera>();
 
-            rootDict = new Dictionary<string, UIRoot>();
-            m_FocusingPanels = new List<UIPanel>();
-            m_TempNewFocusingPanels = new List<UIPanel>();
+            // 找到了同名物体但组件没挂，一样起不来。不拦的话，后面 UIManager.Instance.uiCanvas.transform 会空引用。
+            if (uiCanvas == null || uiCamera == null)
+            {
+                Debug.LogError($"[NRFramework] 启动失败：\"{Config.kUICanvasPath}\" 上缺少 Canvas 组件，" +
+                               $"或 \"{Config.kUICameraPath}\" 上缺少 Camera 组件。");
+            }
         }
 
         // 在指定根的子树里（含自身、含未激活）按名字找第一个 Transform，找不到返回 null。
