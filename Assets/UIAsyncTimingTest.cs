@@ -3,12 +3,19 @@ using NRFramework;
 using UnityEngine;
 
 /// <summary>
-/// 异步加载时序测试。配合 DelayUIResLoader 使用（在 Main 上勾「使用延迟加载器」会自动挂上本组件）。
+/// 异步加载时序测试（开发期工具，不参与正式流程）。
 ///
 /// 要验的是框架里那些「只有在加载跨帧时才会走到」的分支：Loading 占位、加载中取消、加载流水号核验。
-/// 编辑器默认加载器是同步立即回调，这些分支一行都不会执行，所以平时跑着没事不代表接了 YooAsset 还没事。
+/// 编辑器默认加载器是同步加载 + 立即回调，这些分支一行都不会执行，
+/// 所以平时跑着没事，不代表接了 YooAsset / Addressables 之后还没事。
 ///
-/// 按键：1~5 跑单个用例，0 依次跑完全部。结果直接看 Console 里的【通过】/【失败】。
+/// 用法：
+/// 1. 在启动脚本里、Game.Instance.Init() 之前加一行：UIRes.Loader = new DelayUIResLoader(5);
+/// 2. 把本组件挂到场景里任意一个常驻物体上（比如挂 Main 的那个）
+/// 3. 运行，点一下 Game 窗口让它获得焦点，按主键盘 1~5 跑单个用例，按 0 依次跑完全部
+/// 4. 看 Console 里每个用例结尾的【通过】/【失败】
+///
+/// 用例里写死了 Ui_TEST_1_Temp，换成自己的面板改 kPanelId 即可。
 /// </summary>
 public class UIAsyncTimingTest : MonoBehaviour
 {
