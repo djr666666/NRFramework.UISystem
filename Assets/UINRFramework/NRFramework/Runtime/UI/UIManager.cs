@@ -195,14 +195,19 @@ namespace NRFramework
                     needBgPanel = panel;
                 }
 
-                if (panel.panelBehaviour.getFocusType == UIPanelGetFocusType.GetWithOthers)
+                // 焦点收集：命中 Get(独占) 后必须停止，否则其下方面板会被错误地继续加入焦点列表。
+                // 注意要和“背景查找”解耦——不能因为背景还没找到就继续往下收焦点。
+                if (!collectFocusCanBreak)
                 {
-                    m_TempNewFocusingPanels.Add(panel);
-                }
-                else if (panel.panelBehaviour.getFocusType == UIPanelGetFocusType.Get)
-                {
-                    m_TempNewFocusingPanels.Add(panel);
-                    collectFocusCanBreak = true;
+                    if (panel.panelBehaviour.getFocusType == UIPanelGetFocusType.GetWithOthers)
+                    {
+                        m_TempNewFocusingPanels.Add(panel);
+                    }
+                    else if (panel.panelBehaviour.getFocusType == UIPanelGetFocusType.Get)
+                    {
+                        m_TempNewFocusingPanels.Add(panel);
+                        collectFocusCanBreak = true;
+                    }
                 }
 
                 if (needBgPanel != null && collectFocusCanBreak) { break; }

@@ -1,0 +1,69 @@
+# ============================================================
+# Unity 项目 .gitignore（标准版）
+# 这些目录/文件都是本地自动生成的，别人 clone 后 Unity 会自动重建，
+# 不要提交：既无用、又让仓库巨大、还频繁产生冲突。
+# ============================================================
+
+# Unity 自动生成目录
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+
+# Asset meta 文件：对应资源没被忽略时，meta 必须保留（Unity 靠它保引用/GUID）
+!/[Aa]ssets/**/*.meta
+
+# Unity3D 生成的其他文件
+/[Aa]ssets/[Aa]ssetStoreTools*
+/[Aa]ssets/[Pp]lugins/[Ee]ditor/JetBrains*
+.consulo/
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+sysinfo.txt
+
+# 构建产物
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# Crashlytics
+crashlytics-build.properties
+
+# Visual Studio / Rider / VSCode / IDE 工程文件（由 Unity 自动生成）
+.vs/
+.vsconfig
+.idea/
+.vscode/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.svd
+ExportedObj/
+.gradle/
+
+# 操作系统垃圾文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+[Tt]humbs.db
+Desktop.ini

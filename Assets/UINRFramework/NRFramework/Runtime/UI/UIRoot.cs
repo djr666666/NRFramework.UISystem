@@ -99,7 +99,7 @@ namespace NRFramework
 
             UIPanel panel = panelDict[panelId];
             panelDict.Remove(panelId);
-            panelStateDict[panelId] = UIPanelState.Hidden;
+            panelStateDict.Remove(panelId);   // 关闭 = 面板不再存在，必须清占位；否则再开会被 CreatePanelAsync 当重复打开
             panel.Close(onFinish);
 
             UIManager.Instance.SetBackgroundAndFocus();
@@ -122,7 +122,7 @@ namespace NRFramework
 
             UIPanel panel = panelDict[panelId];
             panelDict.Remove(panelId);
-            panelStateDict[panelId] = UIPanelState.Hidden;
+            panelStateDict.Remove(panelId);   // 销毁 = 面板不再存在，必须清占位；同 ClosePanel
             panel.Destroy();
 
             UIManager.Instance.SetBackgroundAndFocus();

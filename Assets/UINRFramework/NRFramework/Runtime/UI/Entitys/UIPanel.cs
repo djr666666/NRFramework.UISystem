@@ -181,12 +181,12 @@ namespace NRFramework
 
         protected virtual void PlayCloseAnim(Action onFinish = null)
         {
-            if (panelBehaviour.ExistValidAnimator() && panelBehaviour.openAnimPlayMode == UIPanelOpenAnimPlayMode.AutoPlay)
+            if (panelBehaviour.ExistValidAnimator() && panelBehaviour.closeAnimPlayMode == UIPanelCloseAnimPlayMode.AutoPlay)
             {
                 Debug.Assert(animState != UIPanelAnimState.Opening && animState != UIPanelAnimState.Closing);
 
                 animState = UIPanelAnimState.Closing;
-                panelBehaviour.PlayOpenAnim(() => { animState = UIPanelAnimState.Closed; onFinish?.Invoke(); });
+                panelBehaviour.PlayCloseAnim(() => { animState = UIPanelAnimState.Closed; onFinish?.Invoke(); });
             }
             else
             {

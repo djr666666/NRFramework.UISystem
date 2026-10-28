@@ -14,10 +14,10 @@ namespace NRFramework
         // 可以往里拖加载界面 / 改布局 / 加子物体 / 别人扩展结构，都随便 ——
         // 唯独下面这三个名字被 UIManager.Awake() 写死引用，改了框架就找不到 UI 根，务必保持：
 
-        /// <summary>UI 根画布的 GameObject 名。UIManager 用 GameObject.Find("UICanvas") 全局按名字找，必须唯一、不可改名。</summary>
+        /// <summary>UI 根画布的 GameObject 名。UIManager 在 GGame 实例子树内按名字找（见 UIManager.FindChildByName，不是全局 GameObject.Find），GGame 内必须有且名字不可改。</summary>
         public const string kUICanvasPath = "UICanvas";
 
-        /// <summary>UI 相机的 GameObject 名。UIManager 用 GameObject.Find("UICamera") 全局按名字找，必须唯一、不可改名。</summary>
+        /// <summary>UI 相机的 GameObject 名。UIManager 在 GGame 实例子树内按名字找（见 UIManager.FindChildByName，不是全局 GameObject.Find），GGame 内必须有且名字不可改。</summary>
         public const string kUICameraPath = "UICamera";
 
         /// <summary>启动预制体名。UIManager 用 Resources.Load&lt;GameObject&gt;("GGame") 加载 —— 使用方的 GGame 预制体必须叫这个名、且在某个 Resources/ 目录下。</summary>
